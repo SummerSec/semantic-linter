@@ -7,16 +7,29 @@ description: Lightweight semantic trap word detector — single-file reference c
 
 A concentrated, single-file reference for detecting semantic trap words in LLM instruction files. No plugin installation required — just read and apply.
 
+## Source of truth（与完整插件的关系）
+
+本文件中的表格是**便携速查**。权威词表、严重等级与失控场景说明以仓库内 **`plugin/references/semantic-trap-lexicon.md`** 为准；安装完整插件时，运行时数据由 **`npm run build-lexicon`** 从该 MD 生成 **`plugin/lib/lexicon-data.js`**。若速查表与 MD 不一致，**以 MD / 生成结果为准**。
+
+## Gotchas
+
+- 表格用于人工扫读，**不保证**与当前分支 MD 逐字同步；发版前以 MD 为准核对 ID 与宽/窄词对。  
+- 替换时保持原意图：目标是**收窄语义边界**，不是消灭所有抽象词。  
+- 示例句式若写入你自己的 Skill，可能触发 linter；生产文案请用窄边界改写后的版本。
+
 ## What Are Semantic Traps?
 
-Semantic trap words are vocabulary with **wide semantic boundaries** that cause LLMs to produce outputs far beyond intended scope. For example, using "risk" instead of "vulnerability" in a security-focused Skill activates finance, health, legal, and career associations — causing ~27% accuracy drop.
+Semantic trap words are vocabulary with **wide semantic boundaries** that cause LLMs to produce outputs far beyond intended scope. Empirical note (see linked article in repo README): swapping a narrow defect-focused noun for a broad finance-adjacent noun in an otherwise identical Skill can materially reduce task accuracy.
 
 **Core principle**: Replace wide-boundary words with narrow-boundary alternatives to constrain LLM output.
 
 ## Trap Word Reference Table
 
+以下宽词表为速查对照；为免在本仓库触发 linter，表体放在围栏块内（阅读时照常查看即可）。
+
 ### Chinese (T01-T17)
 
+```text
 | ID | Trap Word (Wide) | Replacement (Narrow) | Severity | Why It's Dangerous |
 |----|-------------------|----------------------|----------|-------------------|
 | T01 | 风险 | 漏洞 | critical | Activates finance/health/legal associations |
@@ -36,9 +49,11 @@ Semantic trap words are vocabulary with **wide semantic boundaries** that cause 
 | T15 | 评价 | 验证 | medium-high | Triggers subjective scoring |
 | T16 | 原则 | 规则 | medium | Implies flexibility |
 | T17 | 方法 | 步骤 | medium | Implies choice of paths |
+```
 
 ### English (E01-E10)
 
+```text
 | ID | Trap Word (Wide) | Replacement (Narrow) | Severity | Why It's Dangerous |
 |----|-------------------|----------------------|----------|-------------------|
 | E01 | Risk | Vulnerability | critical | Same as T01 |
@@ -51,15 +66,18 @@ Semantic trap words are vocabulary with **wide semantic boundaries** that cause 
 | E08 | Interpret | Extract | high | Triggers subjective interpretation |
 | E09 | Evaluate / Judge | Verify | medium-high | Triggers multi-dimensional evaluation |
 | E10 | Should / Could | Must / Shall | medium-high | Implies optional, not mandatory |
+```
 
-## Structural Risk Patterns
+## Structural drift patterns
 
 Beyond individual words, watch for these 4 patterns:
 
-1. **Open-Ended Verbs**: "Analyze the code" without scope → Add specifics: "Analyze the code for the following 3 defect types: ..."
-2. **Abstract Targets**: "Evaluate code safety" → Replace with concrete criteria: "Check if input validation exists for all API endpoints"
-3. **Modal Downgrades**: "Should follow" in constraints → Use "Must follow" for mandatory rules
-4. **Missing Negation Lists**: Using high-severity trap words without exclusions → Add "The following are NOT in scope: ..."
+```text
+1. Open-Ended Verbs: verb + object without scope → add explicit dimensions or defect types.
+2. Abstract Targets: vague safety/quality goals → replace with checkable criteria per endpoint.
+3. Modal Downgrades: weak modals in constraints → use mandatory wording where rules must hold.
+4. Missing Negation Lists: high-severity wide words without exclusions → add an explicit NOT-in-scope list.
+```
 
 ## How to Apply
 
@@ -67,7 +85,7 @@ When writing or editing instruction files (.md files in /skills/, /agents/, /rul
 
 1. Scan each key noun and verb against the table above
 2. If a wide-boundary word is found, suggest the narrow-boundary replacement
-3. Check for the 4 structural risk patterns
+3. Check for the four structural drift patterns above
 4. When replacing, preserve the original intent — the goal is precision, not restriction
 
 ## Full Plugin

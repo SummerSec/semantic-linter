@@ -11,6 +11,7 @@ const path = require('path');
 const libDir = path.join(__dirname, '..', 'plugin', 'lib');
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
+const { getToolVersion } = require(path.join(libDir, 'meta'));
 
 const CORPUS_DIR = path.join(__dirname, 'corpus');
 const EXPECTED_FILE = path.join(__dirname, 'expected.json');
@@ -120,7 +121,7 @@ function run() {
   const expected = loadExpected();
   const fileNames = Object.keys(expected.files);
 
-  console.log(`${ANSI.bold}semantic-linter benchmark v1.0.0${ANSI.reset}\n`);
+  console.log(`${ANSI.bold}semantic-linter benchmark v${getToolVersion()}${ANSI.reset}\n`);
 
   const allResults = [];
   let passCount = 0;

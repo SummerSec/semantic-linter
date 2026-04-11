@@ -9,7 +9,7 @@
 ## 常用命令
 
 ```bash
-# 运行全部测试（80 个）
+# 运行全部测试（含 build-lexicon --check）
 npm test
 
 # CLI 主动扫描
@@ -21,8 +21,10 @@ npm run scan -- --json <file>   # JSON 格式输出
 # 评估基准测试（8 个语料文件，精确率/召回率）
 npm run benchmark
 
-# 从源码构建词典（如果 scripts/build-lexicon.js 存在）
+# 从 semantic-trap-lexicon.md 生成 plugin/lib/lexicon-data.js
 npm run build-lexicon
+# 校验已生成词典与 Markdown 一致（不写盘）
+npm run build-lexicon:check
 ```
 
 ## 架构概览
@@ -113,7 +115,7 @@ wideWordsEn: Map {
 
 ### 状态持久化
 
-状态管理 (`lib/state-manager.js`) 持久化检测统计到 `~/.semantic-linter/`：
+状态管理 (`lib/state-manager.js`) 持久化检测统计到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖）：
 - `stats.json` — 累计陷阱词频率（永久保存）
 - `session.json` — 当前会话状态（2 小时无活动自动重置）
 - 支持升级系统：L0（正常）→ L1（同词 2 次）→ L2（同词 3+ 次）→ L3（跨 3+ 文件持续性）
@@ -152,7 +154,7 @@ systemMessage 包含明确的执行指令：
 
 ### 测试策略
 
-测试使用 Node.js 内置的 `assert` 模块（零依赖），共 80 个测试（两个测试文件）：
+测试使用 Node.js 内置的 `assert` 模块（零依赖），两个测试文件（运行 `npm test` 查看当前用例数；含 `build-lexicon --check`）：
 
 `tests/test-scanner.js`（47 个测试）— 核心功能：
 - 文件检测器测试：路径模式匹配
@@ -182,11 +184,13 @@ systemMessage 包含明确的执行指令：
 
 6. **主动提示设计**：systemMessage 使用指令式语言要求 Claude 暂停并主动通知用户，而非被动注入上下文
 
-7. **状态持久化**：检测统计持久化到 `~/.semantic-linter/`，支持跨会话累计和会话内升级
+7. **状态持久化**：检测统计持久化到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖），支持跨会话累计和会话内升级
 
-8. **升级系统**：同一陷阱词反复出现时逐级升级警告强度（L0-L3），跨文件持续出现时建议添加项目级规则
+8. **升级系统**：同一陷阱词反复出现时逐级升级警告强度（L0-L3），跨文件持续出现时建议添加项目级规则；**仅在 PostToolUse（及 UserPromptSubmit）中 `recordDetection`**，PreToolUse 只读会话等级、不写入，避免同一轮编辑重复计数
 
 9. **用户指令扫描**：UserPromptSubmit Hook 在用户消息到达模型前扫描陷阱词，从源头防止模糊指令
+
+10. **项目配置与词典生成**：`.semantic-linter.json` 可选忽略规则（`lib/config-loader.js`）；`npm run build-lexicon` 从 `semantic-trap-lexicon.md` 生成 `lexicon-data.js`
 
 ## 检测的文件模式
 

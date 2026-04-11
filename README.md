@@ -117,6 +117,43 @@ Linter 对匹配以下模式的文件生效：
 
 其他文件将被静默跳过。
 
+## 项目配置（可选）
+
+在仓库或父目录中放置 `.semantic-linter.json`，从**被扫描文件所在目录向上**查找最近一份配置：
+
+| 字段 | 说明 |
+|------|------|
+| `ignoreTrapIds` | 字符串数组，如 `["T01"]`，不再报告对应陷阱 ID |
+| `ignorePathSubstrings` | 路径子串（正斜杠规范化后匹配），命中则**整文件跳过**扫描 |
+| `ignoreStructuralTypes` | 如 `["open_ended_verb"]`，关闭指定结构规则 |
+
+UserPromptSubmit（用户消息）扫描使用**当前工作目录**向上查找同一份配置文件。
+
+## 状态与隐私
+
+Hook 与 CLI 会在用户主目录下持久化统计（可用环境变量覆盖目录）：
+
+- 默认路径：`$HOME/.semantic-linter/`（Windows：`%USERPROFILE%\.semantic-linter\`）
+- 覆盖方式：设置环境变量 `SEMANTIC_LINTER_STATE_DIR` 指向自定义目录
+- 内容：`stats.json`（累计次数）、`session.json`（会话内升级状态），可能包含**曾扫描过的文件路径**
+
+写入成功后的检测统计仅在 **PostToolUse** 中更新，避免同一轮 Pre+Post 对同一陷阱重复计数。
+
+## 词典维护与生成
+
+中文/英文陷阱表以 `plugin/references/semantic-trap-lexicon.md` 为权威来源。修改表格后请执行：
+
+```bash
+npm run build-lexicon
+npm test
+```
+
+校验已提交 `lexicon-data.js` 与 Markdown 一致（不写盘）：`npm run build-lexicon:check`
+
+## CLI JSON 输出
+
+`--json` 结果包含 `schemaVersion`（输出结构版本）、`version`（与根目录 `package.json` 一致）、每条文件的 `skipped`（是否被 `ignorePathSubstrings` 跳过），以及 `summary.filesSkipped`。
+
 ## 检测流水线
 
 ```
@@ -133,9 +170,9 @@ Linter 对匹配以下模式的文件生效：
 - 去除代码块，防止示例代码产生误报
 - 对照 27 组陷阱词对进行匹配（基于 Map 的 O(1) 查找）
 - 对每个匹配项进行上下文角色分类：
-  - **constraint_keyword（约束关键词）** — 最高风险（如"必须避免风险"）
-  - **task_target（任务目标）** — 中等风险（如"分析风险"）
-  - **auxiliary（辅助描述）** — 较低风险（如"可能存在风险"）
+  - **constraint_keyword（约束关键词）** — 最高风险（如"只关注风险""不得使用风险"）
+  - **task_target（任务目标）** — 中等风险（如"请分析风险"）
+  - **auxiliary（辅助描述）** — 较低风险（如"不要讨论风险"——单独「不」不作为约束标记，避免误判）
 - 去重：每个词汇在单个文件中仅报告一次
 
 ### 阶段 3 — 结构分析

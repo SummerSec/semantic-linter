@@ -10,6 +10,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execFileSync } = require('child_process');
 
 let passed = 0;
 let failed = 0;
@@ -288,6 +289,52 @@ test('buildEscalation with null returns empty for L0', () => {
   const esc = reportFormatter.buildEscalation(null, null);
   assert.strictEqual(esc.prefix, '');
   assert.strictEqual(esc.suffix, '');
+});
+
+// ========== Config, meta, lexicon build ==========
+console.log('\n--- Config / meta / build-lexicon ---');
+
+test('package.json 与 plugin.json 版本号一致', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const plug = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin.json'), 'utf8'));
+  assert.strictEqual(pkg.version, plug.version);
+});
+
+test('meta.getToolVersion 可读', () => {
+  const meta = require(path.join(__dirname, '..', 'plugin', 'lib', 'meta'));
+  assert.ok(/^\d+\.\d+\.\d+/.test(meta.getToolVersion()));
+});
+
+test('config-loader 按 ignoreTrapIds / ignoreStructuralTypes 过滤', () => {
+  const configLoader = require(path.join(__dirname, '..', 'plugin', 'lib', 'config-loader'));
+  const contentScanner = require(path.join(__dirname, '..', 'plugin', 'lib', 'content-scanner'));
+  const structuralAnalyzer = require(path.join(__dirname, '..', 'plugin', 'lib', 'structural-analyzer'));
+  const cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-cfg-'));
+  fs.mkdirSync(path.join(cfgDir, 'skills'), { recursive: true });
+  fs.writeFileSync(
+    path.join(cfgDir, '.semantic-linter.json'),
+    JSON.stringify({ ignoreTrapIds: ['T01'], ignoreStructuralTypes: ['open_ended_verb'] })
+  );
+  const skillPath = path.join(cfgDir, 'skills', 'a.md');
+  // T01 过滤后不留其他宽词；第二行用「检视」触发开放式动词（该词不在词典宽边界表中）
+  const body = '文本风险\n检视代码';
+  fs.writeFileSync(skillPath, body);
+  const cfg = configLoader.loadConfigForFile(skillPath);
+  assert.ok(cfg.ignoreTrapIds.has('T01'));
+  let lex = contentScanner.scan(body);
+  lex = configLoader.applyConfig(lex, [], cfg).lexiconMatches;
+  assert.strictEqual(lex.length, 0);
+  let struct = structuralAnalyzer.analyze(body, lex);
+  struct = configLoader.applyConfig([], struct, cfg).structuralRisks;
+  assert.ok(!struct.some((r) => r.type === 'open_ended_verb'));
+});
+
+test('build-lexicon --check 通过', () => {
+  const root = path.join(__dirname, '..');
+  execFileSync('node', [path.join(root, 'scripts', 'build-lexicon.js'), '--check'], {
+    encoding: 'utf8',
+    cwd: root,
+  });
 });
 
 // ========== Metadata Validation Tests ==========

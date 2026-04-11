@@ -12,6 +12,7 @@
     "test:new": "node tests/test-new-features.js",
     "scan": "node bin/scan.js",
     "benchmark": "node evals/run-benchmark.js",
-    "build-lexicon": "echo 'build-lexicon: not yet implemented' && exit 1"
+    "build-lexicon": "node scripts/build-lexicon.js",
+    "build-lexicon:check": "node scripts/build-lexicon.js --check"
   }
 }
