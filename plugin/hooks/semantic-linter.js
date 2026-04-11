@@ -104,18 +104,11 @@ try {
     // state-manager unavailable, proceed without escalation
   }
 
-  // 格式化报告
   let report = reportFormatter.format(lexiconMatches, structuralRisks, filePath);
 
-  // Apply escalation suffix if applicable
   if (escalation) {
     const esc = reportFormatter.buildEscalation(escalation.level, escalation.sessionTraps);
-    if (esc.prefix) {
-      report = report.replace('### ✅ 语义陷阱检测器', `### ${esc.prefix}✅ 语义陷阱检测器`);
-    }
-    if (esc.suffix) {
-      report += '\n' + esc.suffix;
-    }
+    report = reportFormatter.appendEscalationToReport(report, esc);
   }
 
   // 输出确认报告到 Claude 上下文（主动提示用户）

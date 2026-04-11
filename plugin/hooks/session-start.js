@@ -3,8 +3,7 @@
  * SessionStart Hook: Inject semantic trap awareness at session start
  *
  * Event: SessionStart (matcher: startup|resume|compact)
- * Injects a brief additionalContext reminding Claude about common
- * semantic trap words and the active linter.
+ * Injects brief additionalContext in旁白式 STL：… style.
  */
 
 const path = require('path');
@@ -27,24 +26,16 @@ const DEFAULT_TOP_TRAPS = [
  * @returns {string}
  */
 function buildContext(sessionStats, topTraps) {
-  const parts = [
-    'Semantic-linter is active. It detects wide-boundary trap words in instruction files that may cause LLM output to exceed intended scope.',
-  ];
-
-  // Top trap words
   const traps = (topTraps && topTraps.length > 0)
-    ? topTraps.slice(0, 5).map(t => t.trapId).join(', ')
-    : DEFAULT_TOP_TRAPS.map(t => `${t.zh}/${t.en} → ${t.narrow}`).join('; ');
-  parts.push(`Common traps: ${traps}.`);
+    ? topTraps.slice(0, 5).map(t => t.trapId).join('、')
+    : DEFAULT_TOP_TRAPS.map(t => `${t.zh}/${t.en}→${t.narrow}`).join('；');
 
-  // Session summary if available
+  let sessionPart = '';
   if (sessionStats && sessionStats.detectionCount > 0) {
-    parts.push(`Session: ${sessionStats.detectionCount} detections, escalation L${sessionStats.escalationLevel || 0}.`);
+    sessionPart = ` STL：本会话已累计 ${sessionStats.detectionCount} 次命中，当前升级等级 L${sessionStats.escalationLevel || 0}。`;
   }
 
-  parts.push('PreToolUse and PostToolUse hooks will scan Write/Edit operations on instruction files.');
-
-  return parts.join(' ');
+  return `STL：semantic-linter 已启用；PreToolUse 与 PostToolUse 会在指令类文件的 Write/Edit 前后扫描宽边界词。常见示例：${traps}。这些词易使输出范围失焦。${sessionPart}`.trim();
 }
 
 // Export for testing
@@ -79,7 +70,7 @@ if (require.main === module) {
     console.log(JSON.stringify({
       hookSpecificOutput: {
         hookEventName: 'SessionStart',
-        additionalContext: 'Semantic-linter is active. It detects wide-boundary trap words in instruction files.',
+        additionalContext: 'STL：semantic-linter 已启用；会在指令类文件中检测宽边界词，易使模型输出范围失焦。',
       },
     }));
     process.exit(0);
