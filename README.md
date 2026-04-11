@@ -31,40 +31,79 @@ semantic-linter 在每次编辑指令文件时**自动捕获**这些陷阱。
 - **零依赖**：纯 Node.js 实现，无需 npm install
 - **非阻塞**：从不中断 Vibe Coding Tools 工作流——发现的问题以警告形式注入
 
-## 快速开始
+## 安装
 
-### 1. 克隆项目
+### Vercel Skills CLI
+
+Vercel Skills CLI 适合用来安装可复用的通用 Skill，不绑定某个特定 AI 工具。如果你只想先体验本仓库提供的单文件参考 Skill，可以使用下面这条命令：
 
 ```bash
-git clone https://github.com/SummerSec/semantic-linter.git
+npx skills add SummerSec/semantic-linter --skill semantic-linter-shot
 ```
 
-### 2. 注册 Hook
+如果当前会话没有立刻识别到新 Skill，重启你的 AI 工具即可。
 
-在 Claude Code 配置文件（`.claude/settings.json` 或全局配置）中添加：
+### Claude Code
+
+如果你希望完整安装本仓库提供的插件能力，可以在 Claude Code 中先把这个仓库添加为插件市场：
+
+```bash
+claude plugin marketplace add SummerSec/semantic-linter
+```
+
+然后安装插件本体：
+
+```bash
+claude plugin install semantic-linter@summersec-semantic-linter
+```
+
+如果安装完成后当前会话没有立刻加载插件，可以执行：
+
+```bash
+/reload-plugins
+```
+
+更新时建议先刷新 marketplace 缓存，再更新插件本体：
+
+```bash
+# 先刷新 marketplace 缓存，再更新插件
+claude plugin marketplace update summersec-semantic-linter
+claude plugin update semantic-linter@summersec-semantic-linter
+```
+
+### 开发者安装（源码）
+
+如果你想直接基于源码使用，或者本地调试、跟进仓库最新改动，可以把仓库克隆到 Claude 的插件目录：
+
+```bash
+git clone https://github.com/SummerSec/semantic-linter.git ~/.claude/plugins/semantic-linter
+```
+
+然后手动登记到 `~/.claude/plugins/installed_plugins.json`：
 
 ```json
 {
-  "hooks": {
-    "PostToolUse": [
+  "version": 2,
+  "plugins": {
+    "semantic-linter@summersec-semantic-linter": [
       {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node /path/to/semantic-linter/hooks/semantic-linter.js",
-            "timeout": 5
-          }
-        ]
+        "scope": "user",
+        "installPath": "/Users/<you>/.claude/plugins/semantic-linter",
+        "version": "1.1.0"
       }
     ]
   }
 }
 ```
 
-### 3. 完成
+Windows 下请把 `installPath` 改成 `C:/Users/<you>/.claude/plugins/semantic-linter`。
 
-Linter 会在 Claude 每次写入或编辑指令文件时自动运行，无需手动调用。
+配置完成后，重启 Claude Code，或执行 `/reload-plugins`。如果你使用的是源码安装，后续更新方式如下：
+
+```bash
+cd ~/.claude/plugins/semantic-linter
+git pull
+```
 
 ## 扫描范围
 
