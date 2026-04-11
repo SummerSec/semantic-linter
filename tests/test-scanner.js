@@ -237,7 +237,7 @@ test('无发现时 formatPre 返回空字符串', () => {
   assert.strictEqual(result, '');
 });
 
-test('format（PostToolUse）生成确认语气报告', () => {
+test('format（PostToolUse）生成旁白式确认报告', () => {
   const matches = [{
     trapId: 'T02', word: '审查', replacement: '检查',
     replacementEn: 'Check', severity: 'high',
@@ -245,14 +245,14 @@ test('format（PostToolUse）生成确认语气报告', () => {
     context: '只审查定义文件中的类型',
   }];
   const report = reportFormatter.format(matches, [], '/path/to/SKILL.md');
+  assert.ok(report.startsWith('STL：'));
   assert.ok(report.includes('写入后确认'));
-  assert.ok(report.includes('T02'));
   assert.ok(report.includes('审查'));
   assert.ok(report.includes('检查'));
-  assert.ok(report.includes('请告知用户'));
+  assert.ok(report.includes('请向用户说明并询问'));
 });
 
-test('formatPre（PreToolUse）生成预警语气报告', () => {
+test('formatPre（PreToolUse）生成旁白式预警报告', () => {
   const matches = [{
     trapId: 'T01', word: '风险', replacement: '漏洞',
     replacementEn: 'Vulnerability', severity: 'critical',
@@ -260,50 +260,55 @@ test('formatPre（PreToolUse）生成预警语气报告', () => {
     context: '请分析代码中的风险',
   }];
   const report = reportFormatter.formatPre(matches, [], '/path/to/SKILL.md');
+  assert.ok(report.startsWith('STL：'));
   assert.ok(report.includes('写入前预警'));
-  assert.ok(report.includes('暂停当前写入任务'));
-  assert.ok(report.includes('执行指令'));
+  assert.ok(report.includes('先向用户展示'));
   assert.ok(report.includes('风险'));
   assert.ok(report.includes('漏洞'));
 });
 
-test('formatPre 包含可操作的替换方案', () => {
+test('formatPre 含行号与「建议改为」旁白', () => {
   const matches = [{
     trapId: 'T01', word: '风险', replacement: '漏洞',
     severity: 'critical', contextRole: 'task_target',
     line: 12, context: '请分析代码中的风险',
   }];
   const report = reportFormatter.formatPre(matches, [], '/path/to/SKILL.md');
-  assert.ok(report.includes('可直接应用的替换方案'));
   assert.ok(report.includes('第12行'));
-  assert.ok(report.includes('"风险" → "漏洞"'));
+  assert.ok(report.includes('「风险」'));
+  assert.ok(report.includes('「漏洞」'));
+  assert.ok(report.includes('建议先改为'));
 });
 
-test('buildReplacements 生成替换列表', () => {
+test('buildReplacements 生成旁白式替换列表', () => {
   const matches = [
     { trapId: 'T01', word: '风险', replacement: '漏洞', severity: 'critical', line: 3, context: '' },
     { trapId: 'T02', word: '审查', replacement: '检查', severity: 'high', line: 7, context: '' },
   ];
   const replacements = reportFormatter.buildReplacements(matches);
   assert.ok(replacements.includes('第3行'));
-  assert.ok(replacements.includes('"风险" → "漏洞"'));
+  assert.ok(replacements.includes('「风险」'));
+  assert.ok(replacements.includes('「漏洞」'));
   assert.ok(replacements.includes('第7行'));
-  assert.ok(replacements.includes('"审查" → "检查"'));
+  assert.ok(replacements.includes('「审查」'));
+  assert.ok(replacements.includes('「检查」'));
+  assert.ok(replacements.startsWith('STL：'));
 });
 
 test('buildReplacements 空匹配返回空字符串', () => {
   assert.strictEqual(reportFormatter.buildReplacements([]), '');
 });
 
-test('format 包含结构性风险', () => {
+test('format 包含结构性风险旁白', () => {
   const risks = [{
     type: 'open_ended_verb', severity: 'medium',
     line: 5, context: '分析代码',
     suggestion: '添加具体范围',
   }];
   const report = reportFormatter.format([], risks, '/path/to/SKILL.md');
-  assert.ok(report.includes('结构性风险'));
+  assert.ok(report.includes('结构性'));
   assert.ok(report.includes('开放式动词'));
+  assert.ok(report.includes('添加具体范围'));
 });
 
 test('formatCli 无发现时显示绿色通过', () => {

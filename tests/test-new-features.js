@@ -173,7 +173,8 @@ const { buildContext } = require(path.join(__dirname, '..', 'hooks', 'session-st
 
 test('buildContext with null stats returns default trap words', () => {
   const ctx = buildContext(null, null);
-  assert.ok(ctx.includes('Semantic-linter is active'));
+  assert.ok(ctx.startsWith('STL：'));
+  assert.ok(ctx.includes('semantic-linter 已启用'));
   assert.ok(ctx.includes('风险'));
   assert.ok(ctx.includes('Risk'));
 });
@@ -181,7 +182,7 @@ test('buildContext with null stats returns default trap words', () => {
 test('buildContext with session stats includes detection count', () => {
   const stats = { detectionCount: 5, escalationLevel: 2 };
   const ctx = buildContext(stats, null);
-  assert.ok(ctx.includes('5 detections'));
+  assert.ok(ctx.includes('累计 5 次命中'));
   assert.ok(ctx.includes('L2'));
 });
 
@@ -206,7 +207,7 @@ test('buildContext output is under 500 characters with defaults', () => {
 test('buildContext with empty session stats omits session line', () => {
   const stats = { detectionCount: 0, escalationLevel: 0 };
   const ctx = buildContext(stats, null);
-  assert.ok(!ctx.includes('Session:'));
+  assert.ok(!ctx.includes('本会话已累计'));
 });
 
 // ========== PromptScanner / formatPromptWarning Tests ==========
@@ -224,11 +225,11 @@ test('formatPromptWarning lists all found trap words', () => {
     { word: '审查', replacement: '检查', trapId: 'T02' },
   ];
   const warning = reportFormatter.formatPromptWarning(matches);
-  assert.ok(warning.includes('"风险"'));
-  assert.ok(warning.includes('"审查"'));
+  assert.ok(warning.includes('「风险」'));
+  assert.ok(warning.includes('「审查」'));
   assert.ok(warning.includes('漏洞'));
   assert.ok(warning.includes('检查'));
-  assert.ok(warning.includes('2 wide-boundary'));
+  assert.ok(warning.includes('2 处宽边界词'));
 });
 
 test('formatPromptWarning generates single-paragraph output', () => {
@@ -237,13 +238,13 @@ test('formatPromptWarning generates single-paragraph output', () => {
   // Should not contain markdown headers or table markers
   assert.ok(!warning.includes('###'));
   assert.ok(!warning.includes('|'));
-  assert.ok(warning.includes('Semantic-linter'));
+  assert.ok(warning.includes('STL：'));
 });
 
 test('formatPromptWarning mentions scope issue', () => {
   const matches = [{ word: 'analyze', replacement: 'Summarize', trapId: 'E05' }];
   const warning = reportFormatter.formatPromptWarning(matches);
-  assert.ok(warning.includes('exceed intended scope'));
+  assert.ok(warning.includes('超出预期范围'));
 });
 
 // ========== Escalation Tests ==========
@@ -258,22 +259,25 @@ test('buildEscalation returns empty for L0', () => {
 test('buildEscalation returns note for L1', () => {
   const esc = reportFormatter.buildEscalation(1, { T01: { count: 2, files: ['/a.md'] } });
   assert.strictEqual(esc.prefix, '');
-  assert.ok(esc.suffix.includes('multiple times'));
+  assert.ok(esc.suffix.includes('升级提示（注意）'));
+  assert.ok(esc.suffix.includes('多次出现'));
 });
 
-test('buildEscalation returns REPEATED prefix for L2', () => {
+test('buildEscalation L2 旁白含重复提示', () => {
   const esc = reportFormatter.buildEscalation(2, { T01: { count: 3, files: ['/a.md'] } });
-  assert.strictEqual(esc.prefix, 'REPEATED ');
-  assert.ok(esc.suffix.includes('3+ times'));
+  assert.strictEqual(esc.prefix, '');
+  assert.ok(esc.suffix.includes('升级提示（重复）'));
+  assert.ok(esc.suffix.includes('3 次及以上'));
 });
 
-test('buildEscalation returns PERSISTENT prefix for L3', () => {
+test('buildEscalation L3 旁白含持续提示与 CLAUDE.md', () => {
   const traps = {
     T01: { count: 3, files: ['/a.md', '/b.md'] },
     T02: { count: 2, files: ['/c.md'] },
   };
   const esc = reportFormatter.buildEscalation(3, traps);
-  assert.strictEqual(esc.prefix, 'PERSISTENT ');
+  assert.strictEqual(esc.prefix, '');
+  assert.ok(esc.suffix.includes('升级提示（持续）'));
   assert.ok(esc.suffix.includes('CLAUDE.md'));
 });
 
@@ -282,7 +286,20 @@ test('buildEscalation L3 shows correct file count', () => {
     T01: { count: 2, files: ['/a.md', '/b.md', '/c.md'] },
   };
   const esc = reportFormatter.buildEscalation(3, traps);
-  assert.ok(esc.suffix.includes('3 files'));
+  assert.ok(esc.suffix.includes('3 个文件'));
+});
+
+test('appendEscalationToReport 将升级旁白拼在报告末尾', () => {
+  const matches = [{
+    trapId: 'T01', word: '风险', replacement: '漏洞',
+    severity: 'critical', contextRole: 'task_target', line: 1, context: '',
+  }];
+  const base = reportFormatter.formatPre(matches, [], '/proj/skills/x/SKILL.md');
+  const esc = reportFormatter.buildEscalation(2, { T01: { count: 3, files: ['/a.md'] } });
+  const merged = reportFormatter.appendEscalationToReport(base, esc);
+  assert.ok(merged.startsWith('STL：'));
+  assert.ok(merged.includes('升级提示（重复）'));
+  assert.ok(merged.length > base.length);
 });
 
 test('buildEscalation with null returns empty for L0', () => {

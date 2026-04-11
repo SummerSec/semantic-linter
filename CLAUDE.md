@@ -35,13 +35,12 @@ npm run build-lexicon:check
 
 1. **SessionStart Hook**（`hooks/session-start.js`）— 会话启动注入
    - 在会话启动/恢复/压缩时触发
-   - 注入 `additionalContext`：提醒 Claude 常见陷阱词和 linter 活跃状态
-   - 如有历史统计数据，展示 top 5 高频陷阱词和当前升级等级
+   - 注入 `additionalContext`：旁白式 `STL：…` 短句，提醒常见陷阱词、Pre/Post 扫描范围及（如有）本会话命中与升级等级
 
 2. **UserPromptSubmit Hook**（`hooks/prompt-scanner.js`）— 用户指令扫描
    - 在用户提交消息时触发（匹配所有消息）
    - 扫描用户指令文本中的陷阱词，防止模糊指令传递给 Claude
-   - 生成简洁单段落警告（非完整表格）
+   - 生成旁白式 `STL：…` 单行串联提示（无 Markdown 表格）
 
 3. **PreToolUse Hook**（`hooks/pre-tool-use.js`）— 写入前预警
    - 在 Write/Edit 操作**之前**触发
@@ -81,10 +80,11 @@ npm run build-lexicon:check
    - **缺少否定清单**：使用高严重级别的宽边界词但未列出排除项
 
 4. **报告格式化** (`lib/report-formatter.js`) - 生成四种格式的报告：
-   - `formatPre()` — PreToolUse 预警报告（含执行指令和替换方案）
-   - `format()` — PostToolUse 确认报告（含修复建议）
-   - `formatCli()` — CLI 终端彩色报告
-   - `formatPromptWarning()` — UserPromptSubmit 简洁单段落警告
+   - `formatPre()` — PreToolUse 旁白式 `STL：…` 预警（串联多句，含替换理由与结构性风险旁白）
+   - `format()` — PostToolUse 旁白式 `STL：…` 确认（同上）
+   - `formatCli()` — CLI 终端彩色报告（仍为分行 ANSI 输出）
+   - `formatPromptWarning()` — UserPromptSubmit 旁白式单行提示
+   - `appendEscalationToReport()` — 将升级旁白拼接到 Pre/Post 的 `systemMessage` 末尾
 
 ### 词典数据结构
 
@@ -148,22 +148,20 @@ wideWordsEn: Map {
 
 ### 主动提示机制
 
-systemMessage 包含明确的执行指令：
-- PreToolUse：要求 Claude 暂停写入、展示问题、提供替换方案、等待用户确认
-- PostToolUse：要求 Claude 告知用户检测结果并询问是否修复
+`systemMessage` / `additionalContext` 以旁白式 `STL：…` 为主，并在首句内嵌流程要求（先向用户展示、确认后再写入 / 写入后告知并询问是否修复）。
 
 ### 测试策略
 
 测试使用 Node.js 内置的 `assert` 模块（零依赖），两个测试文件（运行 `npm test` 查看当前用例数；含 `build-lexicon --check`）：
 
-`tests/test-scanner.js`（47 个测试）— 核心功能：
+`tests/test-scanner.js`（约 50 个测试）— 核心功能：
 - 文件检测器测试：路径模式匹配
 - 内容扫描器测试：词汇检测、代码块去除、上下文分类
 - 结构分析器测试：4 种风险类型的模式检测
 - 报告格式化器测试：Pre/Post/CLI 三种输出模式
 - CLI 工具测试：文件扫描、目录扫描、JSON 输出、退出码
 
-`tests/test-new-features.js`（33 个测试）— 新功能：
+`tests/test-new-features.js`（约 38 个测试）— 新功能：
 - 状态管理器测试：初始化、记录、统计、升级、容错
 - SessionStart Hook 测试：输出格式、内容、降级
 - UserPromptSubmit Hook 测试：检测、清洁输入、格式
@@ -182,7 +180,7 @@ systemMessage 包含明确的执行指令：
 
 5. **Pre/Post 双 Hook 互补**：PreToolUse 做写入前预警（Edit 时仅扫描新内容片段），PostToolUse 做写入后全文确认
 
-6. **主动提示设计**：systemMessage 使用指令式语言要求 Claude 暂停并主动通知用户，而非被动注入上下文
+6. **主动提示设计**：Hook 输出为旁白式 `STL：…` 串联，在首句内嵌「先展示、待确认」/「告知并询问修复」等流程要求，而非长 Markdown 表格
 
 7. **状态持久化**：检测统计持久化到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖），支持跨会话累计和会话内升级
 
