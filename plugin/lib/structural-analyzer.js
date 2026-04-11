@@ -194,17 +194,33 @@ function detectMissingNegation(content, lexiconMatches) {
  * @param {Array<Object>} lexiconMatches - 来自 content-scanner 的匹配结果
  * @returns {Array<Object>}
  */
+/**
+ * 同一行同一类结构风险只保留一条，避免中英规则叠加刷屏
+ * @param {Array<Object>} findings
+ */
+function dedupeStructural(findings) {
+  const seen = new Set();
+  const out = [];
+  for (const f of findings) {
+    const key = `${f.type}:${f.line}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(f);
+  }
+  return out;
+}
+
 function analyze(content, lexiconMatches) {
   // 去除代码块后进行结构分析
   const stripped = content.replace(/```[\s\S]*?```/g, '').replace(/`[^`]+`/g, '');
   const lines = stripped.split('\n');
 
-  return [
+  return dedupeStructural([
     ...detectOpenEndedVerbs(lines),
     ...detectAdjectiveTargets(lines),
     ...detectModalDowngrades(lines),
     ...detectMissingNegation(stripped, lexiconMatches || []),
-  ];
+  ]);
 }
 
 module.exports = { analyze };

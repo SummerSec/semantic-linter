@@ -15,6 +15,7 @@ const fileDetector = require(path.join(libDir, 'file-detector'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
+const configLoader = require(path.join(libDir, 'config-loader'));
 
 // 读取 stdin 输入
 let input = {};
@@ -45,6 +46,13 @@ try {
     process.exit(0);
   }
 
+  const absFile = path.resolve(filePath);
+  const cfg = configLoader.loadConfigForFile(absFile);
+  if (configLoader.shouldIgnoreFile(absFile, cfg)) {
+    console.log(JSON.stringify({ continue: true }));
+    process.exit(0);
+  }
+
   // 提取待写入内容
   let content = '';
   if (toolName === 'Write') {
@@ -60,9 +68,11 @@ try {
     process.exit(0);
   }
 
-  // 执行检测
-  const lexiconMatches = contentScanner.scan(content);
-  const structuralRisks = structuralAnalyzer.analyze(content, lexiconMatches);
+  // 执行检测（先过滤词典命中，再结构分析，以便 missing_negation 等与词典一致）
+  let lexiconMatches = contentScanner.scan(content);
+  lexiconMatches = configLoader.applyConfig(lexiconMatches, [], cfg).lexiconMatches;
+  let structuralRisks = structuralAnalyzer.analyze(content, lexiconMatches);
+  structuralRisks = configLoader.applyConfig([], structuralRisks, cfg).structuralRisks;
 
   const totalFindings = lexiconMatches.length + structuralRisks.length;
 
@@ -71,13 +81,10 @@ try {
     process.exit(0);
   }
 
-  // Escalation integration (fault-tolerant)
+  // 升级提示仅基于历史记录（写入计数在 PostToolUse 完成，避免同一轮 Pre+Post 重复计数）
   let escalation = null;
   try {
     const stateManager = require(path.join(libDir, 'state-manager'));
-    for (const m of lexiconMatches) {
-      stateManager.recordDetection(m.trapId, m.word, filePath);
-    }
     const level = stateManager.computeEscalationLevel();
     if (level > 0) {
       const session = stateManager.getSessionStats();

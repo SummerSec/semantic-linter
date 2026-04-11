@@ -117,6 +117,41 @@ The linter activates on files matching these patterns:
 
 All other files are silently skipped.
 
+## Project configuration (optional)
+
+Place `.semantic-linter.json` in the repo or a parent directory. The linter walks **upward from the scanned file’s directory** and uses the nearest config file.
+
+| Field | Purpose |
+|-------|---------|
+| `ignoreTrapIds` | Array of trap IDs to suppress (e.g. `["T01"]`) |
+| `ignorePathSubstrings` | If the normalized path contains a substring, the **entire file** is skipped |
+| `ignoreStructuralTypes` | e.g. `["open_ended_verb"]` to turn off specific structural rules |
+
+UserPromptSubmit scans use the same config, discovered from **the current working directory** upward.
+
+## State and privacy
+
+Hooks and the CLI persist stats under the user home directory (override with `SEMANTIC_LINTER_STATE_DIR`):
+
+- Default: `$HOME/.semantic-linter/` (Windows: `%USERPROFILE%\.semantic-linter\`)
+- Files: `stats.json`, `session.json` — may include **paths of files that were scanned**
+- **Detection counts are updated on PostToolUse** (and user-prompt scans), not on PreToolUse, so the same edit is not double-counted.
+
+## Lexicon build
+
+Authoritative table: `plugin/references/semantic-trap-lexicon.md`. After editing it:
+
+```bash
+npm run build-lexicon
+npm test
+```
+
+Validate committed output without writing: `npm run build-lexicon:check`
+
+## CLI JSON output
+
+`--json` includes `schemaVersion`, `version` (from root `package.json`), per-file `skipped` (path ignored by config), and `summary.filesSkipped`.
+
 ## Detection Pipeline
 
 ```
@@ -133,9 +168,9 @@ Checks file path against known instruction-file patterns. Only `.md` files are c
 - Strips code blocks to prevent false positives
 - Matches text against 27 trap word pairs (O(1) Map lookup)
 - Classifies each match's context role:
-  - **constraint_keyword** — highest risk (e.g., "must avoid risk")
-  - **task_target** — medium risk (e.g., "analyze the risk")
-  - **auxiliary** — lower risk (e.g., "there may be risk")
+  - **constraint_keyword** — highest risk (e.g. phrases with 只/必须/不得 + wide words)
+  - **task_target** — medium risk (e.g. "please analyze …")
+  - **auxiliary** — lower risk; a bare 不 is **not** treated as a constraint marker (reduces false positives)
 - Deduplicates: each word reported only once per file
 
 ### Stage 3 — Structural Analysis

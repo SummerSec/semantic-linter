@@ -16,6 +16,7 @@ const fileDetector = require(path.join(libDir, 'file-detector'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
+const configLoader = require(path.join(libDir, 'config-loader'));
 
 // 读取 stdin 输入
 let input = {};
@@ -46,6 +47,13 @@ try {
     process.exit(0);
   }
 
+  const absFile = path.resolve(filePath);
+  const cfg = configLoader.loadConfigForFile(absFile);
+  if (configLoader.shouldIgnoreFile(absFile, cfg)) {
+    console.log(JSON.stringify({ continue: true }));
+    process.exit(0);
+  }
+
   // 获取文件内容
   let content = '';
   if (toolName === 'Write' && toolInput.content) {
@@ -67,9 +75,11 @@ try {
     process.exit(0);
   }
 
-  // 执行检测
-  const lexiconMatches = contentScanner.scan(content);
-  const structuralRisks = structuralAnalyzer.analyze(content, lexiconMatches);
+  // 执行检测（先过滤词典命中，再结构分析）
+  let lexiconMatches = contentScanner.scan(content);
+  lexiconMatches = configLoader.applyConfig(lexiconMatches, [], cfg).lexiconMatches;
+  let structuralRisks = structuralAnalyzer.analyze(content, lexiconMatches);
+  structuralRisks = configLoader.applyConfig([], structuralRisks, cfg).structuralRisks;
 
   const totalFindings = lexiconMatches.length + structuralRisks.length;
 

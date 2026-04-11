@@ -13,6 +13,7 @@ const path = require('path');
 const libDir = path.join(__dirname, '..', 'lib');
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
+const configLoader = require(path.join(libDir, 'config-loader'));
 
 // Read stdin
 let input = {};
@@ -34,7 +35,9 @@ try {
   }
 
   // Scan user prompt for trap words (skip structural analysis)
-  const matches = contentScanner.scan(userMessage);
+  const cfg = configLoader.loadConfigForWorkspace();
+  let matches = contentScanner.scan(userMessage);
+  matches = configLoader.applyConfig(matches, [], cfg).lexiconMatches;
 
   if (matches.length === 0) {
     console.log(JSON.stringify({}));

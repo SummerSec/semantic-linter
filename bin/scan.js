@@ -18,6 +18,8 @@ const fileDetector = require(path.join(libDir, 'file-detector'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
+const configLoader = require(path.join(libDir, 'config-loader'));
+const { getToolVersion, JSON_SCHEMA_VERSION } = require(path.join(libDir, 'meta'));
 
 const ANSI = {
   bold: '\x1b[1m',
@@ -96,10 +98,17 @@ function findInstructionFiles(dir) {
  * @returns {Object}
  */
 function scanFile(filePath) {
+  const abs = path.resolve(filePath);
+  const cfg = configLoader.loadConfigForFile(abs);
+  if (configLoader.shouldIgnoreFile(abs, cfg)) {
+    return { filePath: abs, lexiconMatches: [], structuralRisks: [], skipped: true };
+  }
   const content = fs.readFileSync(filePath, 'utf8');
-  const lexiconMatches = contentScanner.scan(content);
-  const structuralRisks = structuralAnalyzer.analyze(content, lexiconMatches);
-  return { filePath, lexiconMatches, structuralRisks };
+  let lexiconMatches = contentScanner.scan(content);
+  lexiconMatches = configLoader.applyConfig(lexiconMatches, [], cfg).lexiconMatches;
+  let structuralRisks = structuralAnalyzer.analyze(content, lexiconMatches);
+  structuralRisks = configLoader.applyConfig([], structuralRisks, cfg).structuralRisks;
+  return { filePath: abs, lexiconMatches, structuralRisks, skipped: false };
 }
 
 /**
@@ -108,17 +117,23 @@ function scanFile(filePath) {
  * @param {string} baseDir
  */
 function outputTerminal(results, baseDir) {
-  console.log(`\n${ANSI.bold}semantic-linter v1.0.0${ANSI.reset}\n`);
+  const ver = getToolVersion();
+  console.log(`\n${ANSI.bold}semantic-linter v${ver}${ANSI.reset}\n`);
 
   let totalFindings = 0;
   const severityCounts = { critical: 0, high: 0, 'medium-high': 0, medium: 0, low: 0 };
 
-  for (const { filePath, lexiconMatches, structuralRisks } of results) {
+  for (const { filePath, lexiconMatches, structuralRisks, skipped } of results) {
     const relativePath = path.relative(baseDir, filePath);
     const findings = lexiconMatches.length + structuralRisks.length;
-    totalFindings += findings;
+    if (!skipped) totalFindings += findings;
 
     console.log(`${ANSI.bold}${ANSI.underline}━━━ ${relativePath} ━━━${ANSI.reset}\n`);
+
+    if (skipped) {
+      console.log(`${ANSI.dim}（已根据 ${configLoader.CONFIG_NAME} 的 ignorePathSubstrings 跳过）${ANSI.reset}\n`);
+      continue;
+    }
 
     const cliReport = reportFormatter.formatCli(lexiconMatches, structuralRisks, filePath);
     console.log(cliReport);
@@ -154,22 +169,26 @@ function outputTerminal(results, baseDir) {
  * @param {string} baseDir
  */
 function outputJson(results, baseDir) {
-  const files = results.map(({ filePath, lexiconMatches, structuralRisks }) => ({
+  const files = results.map(({ filePath, lexiconMatches, structuralRisks, skipped }) => ({
     path: path.relative(baseDir, filePath),
+    skipped: !!skipped,
     lexiconMatches,
     structuralRisks,
-    overallRisk: reportFormatter.computeOverallRisk(lexiconMatches, structuralRisks),
+    overallRisk: skipped ? null : reportFormatter.computeOverallRisk(lexiconMatches, structuralRisks),
   }));
 
   const totalFindings = results.reduce(
-    (sum, r) => sum + r.lexiconMatches.length + r.structuralRisks.length, 0
+    (sum, r) => (r.skipped ? sum : sum + r.lexiconMatches.length + r.structuralRisks.length),
+    0
   );
 
   const output = {
-    version: '1.0.0',
+    schemaVersion: JSON_SCHEMA_VERSION,
+    version: getToolVersion(),
     files,
     summary: {
       filesScanned: results.length,
+      filesSkipped: results.filter((r) => r.skipped).length,
       totalFindings,
     },
   };
@@ -223,7 +242,12 @@ if (stat.isFile()) {
 
 if (filesToScan.length === 0) {
   if (jsonMode) {
-    console.log(JSON.stringify({ version: '1.0.0', files: [], summary: { filesScanned: 0, totalFindings: 0 } }));
+    console.log(JSON.stringify({
+      schemaVersion: JSON_SCHEMA_VERSION,
+      version: getToolVersion(),
+      files: [],
+      summary: { filesScanned: 0, filesSkipped: 0, totalFindings: 0 },
+    }));
   } else {
     console.log(`\n${ANSI.yellow}未找到指令文件${ANSI.reset}\n`);
   }
@@ -240,8 +264,9 @@ if (jsonMode) {
   outputTerminal(results, baseDir);
 }
 
-// 退出码
+// 退出码（被配置跳过的文件不计入）
 const totalFindings = results.reduce(
-  (sum, r) => sum + r.lexiconMatches.length + r.structuralRisks.length, 0
+  (sum, r) => (r.skipped ? sum : sum + r.lexiconMatches.length + r.structuralRisks.length),
+  0
 );
 process.exit(totalFindings > 0 ? 1 : 0);

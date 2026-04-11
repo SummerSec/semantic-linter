@@ -1,6 +1,6 @@
 {
   "name": "semantic-linter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Claude Code hook 插件：检测 Skill/Prompt/Agent 指令文件中的语义陷阱词汇",
   "private": true,
   "bin": {
@@ -12,6 +12,7 @@
     "test:new": "node tests/test-new-features.js",
     "scan": "node bin/scan.js",
     "benchmark": "node evals/run-benchmark.js",
-    "build-lexicon": "node scripts/build-lexicon.js"
+    "build-lexicon": "node scripts/build-lexicon.js",
+    "build-lexicon:check": "node scripts/build-lexicon.js --check"
   }
 }

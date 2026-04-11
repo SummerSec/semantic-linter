@@ -156,6 +156,21 @@ test('正确分类任务目标上下文', () => {
   assert.strictEqual(m.contextRole, 'task_target');
 });
 
+test('「不要」等普通否定不触发约束语境（避免误判）', () => {
+  const matches = contentScanner.scan('不要在这里讨论风险');
+  const m = matches.find((x) => x.word === '风险');
+  assert.ok(m);
+  assert.strictEqual(m.contextRole, 'auxiliary');
+  assert.strictEqual(m.severity, 'high');
+});
+
+test('「不得」触发约束语境', () => {
+  const matches = contentScanner.scan('不得提及风险');
+  const m = matches.find((x) => x.word === '风险');
+  assert.ok(m);
+  assert.strictEqual(m.contextRole, 'constraint_keyword');
+});
+
 // ========== 结构分析器测试 ==========
 console.log('\n--- 结构分析器 (structural-analyzer) ---');
 
@@ -175,6 +190,12 @@ test('检测英文开放式动词（缺少范围限定）', () => {
   const results = structuralAnalyzer.analyze('Analyze the code', []);
   const finding = results.find(r => r.type === 'open_ended_verb');
   assert.ok(finding);
+});
+
+test('同一行中英文开放式动词结构项去重', () => {
+  const results = structuralAnalyzer.analyze('Analyze and 分析 the buffer', []);
+  const open = results.filter((r) => r.type === 'open_ended_verb');
+  assert.strictEqual(open.length, 1);
 });
 
 test('检测中文抽象化目标', () => {
@@ -342,9 +363,11 @@ test('CLI --json 输出有效 JSON', () => {
   } catch (err) {
     assert.strictEqual(err.status, 1);
     const json = JSON.parse(err.stdout);
+    assert.ok(json.schemaVersion >= 1);
     assert.ok(json.version);
     assert.ok(json.files);
     assert.ok(json.summary);
+    assert.ok(typeof json.summary.filesSkipped === 'number');
     assert.ok(json.summary.totalFindings > 0);
   }
 });
