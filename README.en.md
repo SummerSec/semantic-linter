@@ -31,40 +31,79 @@ semantic-linter catches these traps **automatically** every time you edit an ins
 - **Zero dependencies**: Pure Node.js, no npm install needed
 - **Non-blocking**: Never interrupts Claude's workflow — findings are injected as warnings
 
-## Quick Start
+## Installation
 
-### 1. Clone
+### Vercel Skills CLI
+
+Vercel Skills CLI is a good fit when you want a reusable skill that is not tied to a specific AI tool. If you only want to try the lightweight single-file reference skill from this repository, use:
 
 ```bash
-git clone https://github.com/SummerSec/semantic-linter.git
+npx skills add SummerSec/semantic-linter --skill semantic-linter-shot
 ```
 
-### 2. Register the Hook
+If the current session does not pick up the new skill immediately, restart your AI tool.
 
-Add to your Claude Code settings (`.claude/settings.json` or global settings):
+### Claude Code
+
+If you want the full plugin experience in Claude Code, first add this repository as a plugin marketplace:
+
+```bash
+claude plugin marketplace add SummerSec/semantic-linter
+```
+
+Then install the plugin itself:
+
+```bash
+claude plugin install semantic-linter@summersec-semantic-linter
+```
+
+If the current session does not pick up the plugin immediately after installation, run:
+
+```bash
+/reload-plugins
+```
+
+When updating, refresh the marketplace cache first and then update the plugin:
+
+```bash
+# Refresh marketplace cache first, then update
+claude plugin marketplace update summersec-semantic-linter
+claude plugin update semantic-linter@summersec-semantic-linter
+```
+
+### Developer Install (Source)
+
+If you prefer to work directly from source, or want a local development install, clone the repository into your Claude plugins directory:
+
+```bash
+git clone https://github.com/SummerSec/semantic-linter.git ~/.claude/plugins/semantic-linter
+```
+
+Then manually register it in `~/.claude/plugins/installed_plugins.json`:
 
 ```json
 {
-  "hooks": {
-    "PostToolUse": [
+  "version": 2,
+  "plugins": {
+    "semantic-linter@summersec-semantic-linter": [
       {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node /path/to/semantic-linter/hooks/semantic-linter.js",
-            "timeout": 5
-          }
-        ]
+        "scope": "user",
+        "installPath": "/Users/<you>/.claude/plugins/semantic-linter",
+        "version": "1.1.0"
       }
     ]
   }
 }
 ```
 
-### 3. Done
+On Windows, use `C:/Users/<you>/.claude/plugins/semantic-linter` as `installPath`.
 
-The linter runs automatically whenever Claude writes or edits an instruction file. No manual invocation needed.
+After registration, restart Claude Code, or run `/reload-plugins`. To update a source install:
+
+```bash
+cd ~/.claude/plugins/semantic-linter
+git pull
+```
 
 ## What Gets Scanned
 
