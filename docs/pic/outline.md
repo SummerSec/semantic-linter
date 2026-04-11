@@ -1,5 +1,5 @@
 ---
-article: docs/别让大模型"想太多"：SKILL开发中的语义陷阱与抗幻觉设计.md
+article: docs/别让大模型想太多：SKILL开发中的语义陷阱与抗幻觉设计.md
 preset: tech-explainer
 type: infographic
 style: blueprint
