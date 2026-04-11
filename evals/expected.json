@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "description": "Ground truth annotations for semantic-linter benchmark corpus",
+  "files": {
+    "all-narrow-words.md": {
+      "expectedLexiconCount": 0,
+      "expectedStructuralCount": 0,
+      "expectedTrapIds": [],
+      "expectedStructuralTypes": []
+    },
+    "clean-instructions.md": {
+      "expectedLexiconCount": 0,
+      "expectedStructuralCount": 0,
+      "expectedTrapIds": [],
+      "expectedStructuralTypes": []
+    },
+    "code-block-traps.md": {
+      "expectedLexiconCount": 1,
+      "expectedStructuralCount": 0,
+      "expectedTrapIds": ["E10"],
+      "expectedStructuralTypes": [],
+      "note": "Traps inside code blocks are correctly filtered. Only 'should' outside code block is detected."
+    },
+    "single-trap.md": {
+      "expectedLexiconCount": 1,
+      "expectedStructuralCount": 0,
+      "expectedTrapIds": ["E01"],
+      "expectedStructuralTypes": []
+    },
+    "multiple-traps.md": {
+      "expectedLexiconCount": 10,
+      "expectedStructuralCount": 5,
+      "expectedTrapIds": ["T02", "T01", "T03", "T04", "T05", "T10", "T06", "T08", "T11", "T14"],
+      "expectedStructuralTypes": ["open_ended_verb", "adjective_target", "missing_negation"]
+    },
+    "mixed-en-zh.md": {
+      "expectedLexiconCount": 6,
+      "expectedStructuralCount": 2,
+      "expectedTrapIds": ["E05", "E03", "E01", "T04", "T06", "T10"],
+      "expectedStructuralTypes": ["open_ended_verb", "missing_negation"]
+    },
+    "structural-only.md": {
+      "expectedLexiconCount": 1,
+      "expectedStructuralCount": 2,
+      "expectedTrapIds": ["T05"],
+      "expectedStructuralTypes": ["open_ended_verb", "adjective_target"]
+    },
+    "edge-cases.md": {
+      "expectedLexiconCount": 7,
+      "expectedStructuralCount": 3,
+      "expectedTrapIds": ["T01", "E10", "T04", "E04", "T09", "T17", "T10"],
+      "expectedStructuralTypes": ["open_ended_verb", "adjective_target", "missing_negation"],
+      "note": "Tests dedup (风险 3x -> 1 report), bilingual same-line, and structural patterns."
+    }
+  }
+}

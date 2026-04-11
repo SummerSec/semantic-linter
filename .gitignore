@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Runtime state (semantic-linter persistent data)
+.semantic-linter/
+
+# npm
+npm-debug.log*
+package-lock.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.sublime-workspace

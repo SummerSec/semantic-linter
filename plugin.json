@@ -1,0 +1,20 @@
+{
+  "name": "semantic-linter",
+  "version": "1.1.0",
+  "description": "Detects semantic trap words in LLM instruction files (Skill/Prompt/Agent). Identifies wide-boundary vocabulary that may cause hallucination or scope creep.",
+  "license": "MIT",
+  "author": {
+    "name": "semantic-linter contributors"
+  },
+  "keywords": [
+    "semantic-trap",
+    "linter",
+    "prompt-engineering",
+    "hallucination-prevention",
+    "instruction-quality",
+    "skill-development",
+    "lexicon",
+    "wide-boundary-words",
+    "claude-code-hook"
+  ]
+}
