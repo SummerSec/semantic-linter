@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "semantic-linter-local",
+  "description": "Local marketplace entry for the semantic-linter Claude Code plugin.",
+  "owner": {
+    "name": "semantic-linter contributors"
+  },
+  "plugins": [
+    {
+      "name": "semantic-linter",
+      "version": "1.1.0",
+      "description": "Detects semantic trap words in LLM instruction files (Skill/Prompt/Agent). Identifies wide-boundary vocabulary that may cause hallucination or scope creep.",
+      "author": {
+        "name": "semantic-linter contributors"
+      },
+      "source": "./",
+      "category": "development",
+      "homepage": "https://github.com/SummerSec/semantic-linter",
+      "strict": false
+    }
+  ]
+}
