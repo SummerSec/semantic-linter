@@ -6,7 +6,7 @@ A Vibe Coding Tools plugin that detects **semantic trap words** in Skill / Promp
 
 > Using "risk" instead of "vulnerability" in the same Skill can cause a **27% accuracy drop**, even with identical constraints and logic.
 
-This project evolved from the theoretical framework presented in [*Don't Let LLMs "Overthink": Semantic Traps and Anti-Hallucination Design in SKILL Development*](https://sumsec.me/2026/%E5%88%AB%E8%AE%A9%E5%A4%A7%E6%A8%A1%E5%9E%8B_%E6%83%B3%E5%A4%AA%E5%A4%9A_%EF%BC%9ASKILL%E5%BC%80%E5%8F%91%E4%B8%AD%E7%9A%84%E8%AF%AD%E4%B9%89%E9%99%B7%E9%98%B1%E4%B8%8E%E6%8A%97%E5%B9%BB%E8%A7%89%E8%AE%BE%E8%AE%A1.html), turning its semantic trap detection methodology into an automated tool. The full article is available at [`docs/`](./docs/别让大模型"想太多"：SKILL开发中的语义陷阱与抗幻觉设计.md).
+This project evolved from the theoretical framework presented in [*Don't Let LLMs "Overthink": Semantic Traps and Anti-Hallucination Design in SKILL Development*](https://sumsec.me/2026/%E5%88%AB%E8%AE%A9%E5%A4%A7%E6%A8%A1%E5%9E%8B_%E6%83%B3%E5%A4%AA%E5%A4%9A_%EF%BC%9ASKILL%E5%BC%80%E5%8F%91%E4%B8%AD%E7%9A%84%E8%AF%AD%E4%B9%89%E9%99%B7%E9%98%B1%E4%B8%8E%E6%8A%97%E5%B9%BB%E8%A7%89%E8%AE%BE%E8%AE%A1.html), turning its semantic trap detection methodology into an automated tool. The full article is available at [`docs/`](./docs/别让大模型想太多：SKILL开发中的语义陷阱与抗幻觉设计.md).
 
 ## The Problem
 
