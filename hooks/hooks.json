@@ -46,6 +46,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/read-scanner.js",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }

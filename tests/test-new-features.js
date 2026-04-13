@@ -432,6 +432,128 @@ test('runScanPipeline returns ignored flag for ignored files', () => {
   fs.rmSync(cfgDir3, { recursive: true });
 });
 
+// ========== Read Scanner Hook Tests ==========
+console.log('\n--- Read Scanner Hook (read-scanner) ---');
+
+const readScannerPath = path.join(__dirname, '..', 'hooks', 'read-scanner.js');
+
+test('read-scanner detects trap words in read instruction file', () => {
+  const hookInput = JSON.stringify({
+    tool_name: 'Read',
+    tool_input: { file_path: '/proj/skills/a/SKILL.md' },
+    tool_response: '1\t请审查代码中的风险\n2\t第二行内容\n',
+  });
+  const result = execFileSync('node', [readScannerPath], {
+    input: hookInput,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  const output = JSON.parse(result.trim());
+  assert.strictEqual(output.continue, true);
+  assert.ok(output.systemMessage);
+  assert.ok(output.systemMessage.includes('读取提示'));
+  assert.ok(output.systemMessage.includes('风险'));
+  assert.ok(output.systemMessage.includes('审查'));
+});
+
+test('read-scanner skips non-instruction files', () => {
+  const hookInput = JSON.stringify({
+    tool_name: 'Read',
+    tool_input: { file_path: '/proj/src/app.js' },
+    tool_response: '1\t请审查代码中的风险\n',
+  });
+  const result = execFileSync('node', [readScannerPath], {
+    input: hookInput,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  const output = JSON.parse(result.trim());
+  assert.strictEqual(output.continue, true);
+  assert.ok(!output.systemMessage);
+});
+
+test('read-scanner skips clean instruction files', () => {
+  const hookInput = JSON.stringify({
+    tool_name: 'Read',
+    tool_input: { file_path: '/proj/skills/a/SKILL.md' },
+    tool_response: '1\t请检查代码中的漏洞\n',
+  });
+  const result = execFileSync('node', [readScannerPath], {
+    input: hookInput,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  const output = JSON.parse(result.trim());
+  assert.strictEqual(output.continue, true);
+  assert.ok(!output.systemMessage);
+});
+
+test('read-scanner handles empty tool_response', () => {
+  const hookInput = JSON.stringify({
+    tool_name: 'Read',
+    tool_input: { file_path: '/proj/skills/a/SKILL.md' },
+    tool_response: '',
+  });
+  const result = execFileSync('node', [readScannerPath], {
+    input: hookInput,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  const output = JSON.parse(result.trim());
+  assert.strictEqual(output.continue, true);
+  assert.ok(!output.systemMessage);
+});
+
+test('read-scanner handles object tool_response with content field', () => {
+  const hookInput = JSON.stringify({
+    tool_name: 'Read',
+    tool_input: { file_path: '/proj/skills/a/SKILL.md' },
+    tool_response: { content: '请审查代码中的风险' },
+  });
+  const result = execFileSync('node', [readScannerPath], {
+    input: hookInput,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  const output = JSON.parse(result.trim());
+  assert.strictEqual(output.continue, true);
+  assert.ok(output.systemMessage);
+  assert.ok(output.systemMessage.includes('读取提示'));
+});
+
+test('read-scanner strips cat -n line number prefixes', () => {
+  const hookInput = JSON.stringify({
+    tool_name: 'Read',
+    tool_input: { file_path: '/proj/skills/a/SKILL.md' },
+    tool_response: '1\t请检查漏洞\n2\t风险很大\n3\t无问题行\n',
+  });
+  const result = execFileSync('node', [readScannerPath], {
+    input: hookInput,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  const output = JSON.parse(result.trim());
+  assert.strictEqual(output.continue, true);
+  assert.ok(output.systemMessage);
+  assert.ok(output.systemMessage.includes('风险'));
+});
+
+test('read-scanner handles missing file_path gracefully', () => {
+  const hookInput = JSON.stringify({
+    tool_name: 'Read',
+    tool_input: {},
+    tool_response: '1\t风险\n',
+  });
+  const result = execFileSync('node', [readScannerPath], {
+    input: hookInput,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  const output = JSON.parse(result.trim());
+  assert.strictEqual(output.continue, true);
+  assert.ok(!output.systemMessage);
+});
+
 // ========== Cleanup & Summary ==========
 try {
   fs.rmSync(tmpDir, { recursive: true });
