@@ -12,10 +12,8 @@ const path = require('path');
 
 const libDir = path.join(__dirname, '..', 'lib');
 const fileDetector = require(path.join(libDir, 'file-detector'));
-const contentScanner = require(path.join(libDir, 'content-scanner'));
-const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
-const configLoader = require(path.join(libDir, 'config-loader'));
+const scanPipeline = require(path.join(libDir, 'scan-pipeline'));
 
 // 读取 stdin 输入
 let input = {};
@@ -46,20 +44,11 @@ try {
     process.exit(0);
   }
 
-  const absFile = path.resolve(filePath);
-  const cfg = configLoader.loadConfigForFile(absFile);
-  if (configLoader.shouldIgnoreFile(absFile, cfg)) {
-    console.log(JSON.stringify({ continue: true }));
-    process.exit(0);
-  }
-
   // 提取待写入内容
   let content = '';
   if (toolName === 'Write') {
-    // Write 工具：从 tool_input.content 获取完整内容
     content = toolInput.content || '';
   } else if (toolName === 'Edit') {
-    // Edit 工具：仅扫描 new_string（文件尚未修改，不能读磁盘）
     content = toolInput.new_string || '';
   }
 
@@ -68,15 +57,10 @@ try {
     process.exit(0);
   }
 
-  // 执行检测（先过滤词典命中，再结构分析，以便 missing_negation 等与词典一致）
-  let lexiconMatches = contentScanner.scan(content);
-  lexiconMatches = configLoader.applyConfig(lexiconMatches, [], cfg).lexiconMatches;
-  let structuralRisks = structuralAnalyzer.analyze(content, lexiconMatches);
-  structuralRisks = configLoader.applyConfig([], structuralRisks, cfg).structuralRisks;
+  // 执行共享扫描管道
+  const { lexiconMatches, structuralRisks, totalFindings, ignored } = scanPipeline.runScanPipeline(content, filePath);
 
-  const totalFindings = lexiconMatches.length + structuralRisks.length;
-
-  if (totalFindings === 0) {
+  if (ignored || totalFindings === 0) {
     console.log(JSON.stringify({ continue: true }));
     process.exit(0);
   }
