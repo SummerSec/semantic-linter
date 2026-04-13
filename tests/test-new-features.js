@@ -313,19 +313,19 @@ console.log('\n--- Config / meta / build-lexicon ---');
 
 test('package.json 与 plugin.json 版本号一致', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  const plug = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin.json'), 'utf8'));
+  const plug = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8'));
   assert.strictEqual(pkg.version, plug.version);
 });
 
 test('meta.getToolVersion 可读', () => {
-  const meta = require(path.join(__dirname, '..', 'plugin', 'lib', 'meta'));
+  const meta = require(path.join(__dirname, '..', 'lib', 'meta'));
   assert.ok(/^\d+\.\d+\.\d+/.test(meta.getToolVersion()));
 });
 
 test('config-loader 按 ignoreTrapIds / ignoreStructuralTypes 过滤', () => {
-  const configLoader = require(path.join(__dirname, '..', 'plugin', 'lib', 'config-loader'));
-  const contentScanner = require(path.join(__dirname, '..', 'plugin', 'lib', 'content-scanner'));
-  const structuralAnalyzer = require(path.join(__dirname, '..', 'plugin', 'lib', 'structural-analyzer'));
+  const configLoader = require(path.join(__dirname, '..', 'lib', 'config-loader'));
+  const contentScanner = require(path.join(__dirname, '..', 'lib', 'content-scanner'));
+  const structuralAnalyzer = require(path.join(__dirname, '..', 'lib', 'structural-analyzer'));
   const cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-cfg-'));
   fs.mkdirSync(path.join(cfgDir, 'skills'), { recursive: true });
   fs.writeFileSync(

@@ -11,8 +11,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const MD_PATH = path.join(ROOT, 'plugin', 'references', 'semantic-trap-lexicon.md');
-const OUT_PATH = path.join(ROOT, 'plugin', 'lib', 'lexicon-data.js');
+const MD_PATH = path.join(ROOT, 'references', 'semantic-trap-lexicon.md');
+const OUT_PATH = path.join(ROOT, 'lib', 'lexicon-data.js');
 
 const ZH_SEV = { 极高: 'critical', 高: 'high', 中高: 'medium-high', 中: 'medium' };
 const EN_SEV = {
