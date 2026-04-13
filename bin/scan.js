@@ -13,13 +13,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const libDir = path.join(__dirname, '..', 'plugin', 'lib');
+const libDir = path.join(__dirname, '..', 'lib');
 const fileDetector = require(path.join(libDir, 'file-detector'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
 const configLoader = require(path.join(libDir, 'config-loader'));
 const { getToolVersion, JSON_SCHEMA_VERSION } = require(path.join(libDir, 'meta'));
+
+const PKG_VERSION = require(path.join(__dirname, '..', 'package.json')).version;
 
 const ANSI = {
   bold: '\x1b[1m',
