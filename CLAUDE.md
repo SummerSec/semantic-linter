@@ -29,9 +29,9 @@ npm run build-lexicon:check
 
 ## 架构概览
 
-### 触发机制（4 Hook + CLI）
+### 触发机制（5 Hook + CLI）
 
-该工具提供五种触发方式：
+该工具提供六种触发方式：
 
 1. **SessionStart Hook**（`hooks/session-start.js`）— 会话启动注入
    - 在会话启动/恢复/压缩时触发
@@ -56,7 +56,13 @@ npm run build-lexicon:check
    - 提示 Claude 告知用户检测结果并建议修复
    - 集成升级系统：追踪跨文件持续性陷阱词
 
-5. **CLI 工具**（`bin/scan.js`）— 命令行主动扫描
+5. **PostToolUse(Read) Hook**（`hooks/read-scanner.js`）— 读取后提示
+   - 在 Read 操作**之后**触发
+   - 从 `tool_response` 中提取文件内容（处理 cat -n 行号前缀格式）
+   - 提示 Claude 该文件含有语义陷阱词，建议引用前先修复
+   - 集成升级系统：记录检测统计
+
+6. **CLI 工具**（`bin/scan.js`）— 命令行主动扫描
    - 支持扫描单文件、目录、当前工作区
    - 终端彩色输出 + JSON 输出模式
    - 退出码：0=无问题, 1=有发现, 2=参数错误
@@ -82,6 +88,7 @@ npm run build-lexicon:check
 4. **报告格式化** (`lib/report-formatter.js`) - 生成四种格式的报告：
    - `formatPre()` — PreToolUse 旁白式 `STL：…` 预警（串联多句，含替换理由与结构性风险旁白）
    - `format()` — PostToolUse 旁白式 `STL：…` 确认（同上）
+   - `formatRead()` — PostToolUse(Read) 旁白式 `STL：…` 读取提示（引用前建议修复）
    - `formatCli()` — CLI 终端彩色报告（仍为分行 ANSI 输出）
    - `formatPromptWarning()` — UserPromptSubmit 旁白式单行提示
    - `appendEscalationToReport()` — 将升级旁白拼接到 Pre/Post 的 `systemMessage` 末尾
@@ -111,6 +118,7 @@ wideWordsEn: Map {
 - **UserPromptSubmit**：用户消息中的陷阱词实时扫描
 - **PreToolUse**：`Write|Edit` 操作前触发预警
 - **PostToolUse**：`Write|Edit` 操作后触发确认
+- **PostToolUse(Read)**：`Read` 操作后触发读取提示
 - 所有 Hook 均不阻断操作（`continue: true`），通过 `systemMessage`/`additionalContext` 主动提示
 
 ### 状态持久化
@@ -184,7 +192,7 @@ wideWordsEn: Map {
 
 7. **状态持久化**：检测统计持久化到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖），支持跨会话累计和会话内升级
 
-8. **升级系统**：同一陷阱词反复出现时逐级升级警告强度（L0-L3），跨文件持续出现时建议添加项目级规则；**仅在 PostToolUse（及 UserPromptSubmit）中 `recordDetection`**，PreToolUse 只读会话等级、不写入，避免同一轮编辑重复计数
+8. **升级系统**：同一陷阱词反复出现时逐级升级警告强度（L0-L3），跨文件持续出现时建议添加项目级规则；**仅在 PostToolUse（Write|Edit|Read）及 UserPromptSubmit 中 `recordDetection`**，PreToolUse 只读会话等级、不写入，避免同一轮编辑重复计数
 
 9. **用户指令扫描**：UserPromptSubmit Hook 在用户消息到达模型前扫描陷阱词，从源头防止模糊指令
 
