@@ -26,7 +26,7 @@ try {
 }
 
 try {
-  const userMessage = input.user_message || '';
+  const userMessage = input.prompt || '';
 
   if (!userMessage.trim()) {
     console.log(JSON.stringify({}));

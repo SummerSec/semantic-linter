@@ -6,6 +6,7 @@
   "author": {
     "name": "semantic-linter contributors"
   },
+  "repository": "https://github.com/SummerSec/semantic-linter",
   "keywords": [
     "semantic-trap",
     "linter",
@@ -16,5 +17,7 @@
     "lexicon",
     "wide-boundary-words",
     "claude-code-hook"
-  ]
+  ],
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/"
 }

@@ -34,8 +34,8 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'semantic-linter-test-'));
 process.env.SEMANTIC_LINTER_STATE_DIR = tmpDir;
 
 // Re-require state-manager after setting env var
-delete require.cache[require.resolve(path.join(__dirname, '..', 'plugin', 'lib', 'state-manager'))];
-const stateManager = require(path.join(__dirname, '..', 'plugin', 'lib', 'state-manager'));
+delete require.cache[require.resolve(path.join(__dirname, '..', 'lib', 'state-manager'))];
+const stateManager = require(path.join(__dirname, '..', 'lib', 'state-manager'));
 
 test('initState creates directory and files', () => {
   stateManager.initState();
@@ -168,7 +168,7 @@ test('state-manager handles corrupted stats.json gracefully', () => {
 // ========== SessionStart Hook Tests ==========
 console.log('\n--- SessionStart Hook (session-start) ---');
 
-const { buildContext } = require(path.join(__dirname, '..', 'plugin', 'hooks', 'session-start'));
+const { buildContext } = require(path.join(__dirname, '..', 'hooks', 'session-start'));
 
 test('buildContext with null stats returns default trap words', () => {
   const ctx = buildContext(null, null);
@@ -211,7 +211,7 @@ test('buildContext with empty session stats omits session line', () => {
 // ========== PromptScanner / formatPromptWarning Tests ==========
 console.log('\n--- UserPromptSubmit Hook (prompt-scanner) ---');
 
-const reportFormatter = require(path.join(__dirname, '..', 'plugin', 'lib', 'report-formatter'));
+const reportFormatter = require(path.join(__dirname, '..', 'lib', 'report-formatter'));
 
 test('formatPromptWarning returns empty for no matches', () => {
   assert.strictEqual(reportFormatter.formatPromptWarning([]), '');
@@ -294,7 +294,7 @@ test('buildEscalation with null returns empty for L0', () => {
 console.log('\n--- Metadata Validation ---');
 
 test('plugin.json is valid JSON with required fields', () => {
-  const raw = fs.readFileSync(path.join(__dirname, '..', 'plugin.json'), 'utf8');
+  const raw = fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8');
   const json = JSON.parse(raw);
   assert.ok(json.name);
   assert.ok(json.version);

@@ -8,7 +8,7 @@ const assert = require('assert');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const libDir = path.join(__dirname, '..', 'plugin', 'lib');
+const libDir = path.join(__dirname, '..', 'lib');
 const fileDetector = require(path.join(libDir, 'file-detector'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));

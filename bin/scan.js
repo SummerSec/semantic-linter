@@ -13,11 +13,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const libDir = path.join(__dirname, '..', 'plugin', 'lib');
+const libDir = path.join(__dirname, '..', 'lib');
 const fileDetector = require(path.join(libDir, 'file-detector'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
+
+const PKG_VERSION = require(path.join(__dirname, '..', 'package.json')).version;
 
 const ANSI = {
   bold: '\x1b[1m',
@@ -108,7 +110,7 @@ function scanFile(filePath) {
  * @param {string} baseDir
  */
 function outputTerminal(results, baseDir) {
-  console.log(`\n${ANSI.bold}semantic-linter v1.0.0${ANSI.reset}\n`);
+  console.log(`\n${ANSI.bold}semantic-linter v${PKG_VERSION}${ANSI.reset}\n`);
 
   let totalFindings = 0;
   const severityCounts = { critical: 0, high: 0, 'medium-high': 0, medium: 0, low: 0 };
@@ -166,7 +168,7 @@ function outputJson(results, baseDir) {
   );
 
   const output = {
-    version: '1.0.0',
+    version: PKG_VERSION,
     files,
     summary: {
       filesScanned: results.length,
