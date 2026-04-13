@@ -382,6 +382,56 @@ test('benchmark corpus files all exist', () => {
   }
 });
 
+// ========== Scan Pipeline Tests ==========
+console.log('\n--- Scan Pipeline (scan-pipeline) ---');
+
+const scanPipeline = require(path.join(__dirname, '..', 'lib', 'scan-pipeline'));
+
+test('runScanPipeline detects trap words in instruction file content', () => {
+  const content = '请审查代码中的风险';
+  const result = scanPipeline.runScanPipeline(content, '/proj/skills/a/SKILL.md');
+  assert.ok(result.totalFindings > 0);
+  assert.ok(result.lexiconMatches.length >= 2); // 审查 + 风险
+  assert.ok(result.lexiconMatches.some(m => m.word === '风险'));
+  assert.ok(result.lexiconMatches.some(m => m.word === '审查'));
+});
+
+test('runScanPipeline returns empty for clean content', () => {
+  const content = '请检查代码中的漏洞';
+  const result = scanPipeline.runScanPipeline(content, '/proj/skills/a/SKILL.md');
+  assert.strictEqual(result.totalFindings, 0);
+  assert.strictEqual(result.lexiconMatches.length, 0);
+  assert.strictEqual(result.structuralRisks.length, 0);
+});
+
+test('runScanPipeline respects config ignoreTrapIds', () => {
+  const cfgDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-pipe-'));
+  fs.mkdirSync(path.join(cfgDir2, 'skills'), { recursive: true });
+  fs.writeFileSync(
+    path.join(cfgDir2, '.semantic-linter.json'),
+    JSON.stringify({ ignoreTrapIds: ['T01'] })
+  );
+  const skillPath2 = path.join(cfgDir2, 'skills', 'SKILL.md');
+  fs.writeFileSync(skillPath2, '风险');
+  const result = scanPipeline.runScanPipeline('风险', skillPath2);
+  assert.strictEqual(result.lexiconMatches.length, 0);
+  fs.rmSync(cfgDir2, { recursive: true });
+});
+
+test('runScanPipeline returns ignored flag for ignored files', () => {
+  const cfgDir3 = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-pipe2-'));
+  fs.writeFileSync(
+    path.join(cfgDir3, '.semantic-linter.json'),
+    JSON.stringify({ ignorePathSubstrings: ['/vendor/'] })
+  );
+  const vendorPath = path.join(cfgDir3, 'vendor', 'SKILL.md');
+  fs.mkdirSync(path.dirname(vendorPath), { recursive: true });
+  fs.writeFileSync(vendorPath, '风险');
+  const result = scanPipeline.runScanPipeline('风险', vendorPath);
+  assert.strictEqual(result.ignored, true);
+  fs.rmSync(cfgDir3, { recursive: true });
+});
+
 // ========== Cleanup & Summary ==========
 try {
   fs.rmSync(tmpDir, { recursive: true });
