@@ -337,6 +337,49 @@ test('computeOverallRisk 返回最高风险等级', () => {
   assert.strictEqual(risk, 'CRITICAL');
 });
 
+test('无发现时 formatRead 返回空字符串', () => {
+  const result = reportFormatter.formatRead([], [], '/path/to/SKILL.md');
+  assert.strictEqual(result, '');
+});
+
+test('formatRead 生成读取提示旁白', () => {
+  const matches = [{
+    trapId: 'T01', word: '风险', replacement: '漏洞',
+    replacementEn: 'Vulnerability', severity: 'critical',
+    contextRole: 'task_target', line: 5,
+    context: '请分析代码中的风险',
+  }];
+  const report = reportFormatter.formatRead(matches, [], '/path/to/SKILL.md');
+  assert.ok(report.startsWith('STL：'));
+  assert.ok(report.includes('读取提示'));
+  assert.ok(report.includes('建议先修复'));
+  assert.ok(report.includes('风险'));
+  assert.ok(report.includes('漏洞'));
+});
+
+test('formatRead 含行号与替换建议', () => {
+  const matches = [{
+    trapId: 'T02', word: '审查', replacement: '检查',
+    severity: 'high', contextRole: 'constraint_keyword',
+    line: 8, context: '只审查定义文件',
+  }];
+  const report = reportFormatter.formatRead(matches, [], '/path/to/SKILL.md');
+  assert.ok(report.includes('第8行'));
+  assert.ok(report.includes('「审查」'));
+  assert.ok(report.includes('「检查」'));
+});
+
+test('formatRead 包含结构性风险旁白', () => {
+  const risks = [{
+    type: 'open_ended_verb', severity: 'medium',
+    line: 5, context: '分析代码',
+    suggestion: '添加具体范围',
+  }];
+  const report = reportFormatter.formatRead([], risks, '/path/to/SKILL.md');
+  assert.ok(report.includes('开放式动词'));
+  assert.ok(report.includes('添加具体范围'));
+});
+
 // ========== CLI 工具测试 ==========
 console.log('\n--- CLI 工具 (bin/scan.js) ---');
 
