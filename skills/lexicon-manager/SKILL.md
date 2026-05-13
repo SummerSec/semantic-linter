@@ -5,14 +5,14 @@ description: 维护 semantic-linter 语义陷阱词典——在 Markdown 源表�
 
 # 语义陷阱词典管理器
 
-交互式维护词典：**权威来源**为 `plugin/references/semantic-trap-lexicon.md` 中的表格；`plugin/lib/lexicon-data.js` 由 `npm run build-lexicon` **自动生成**，不要作为手写主路径（避免与校验脚本不一致）。
+交互式维护词典：**权威来源**为 `references/semantic-trap-lexicon.md` 中的表格；`lib/lexicon-data.js` 由 `npm run build-lexicon` **自动生成**，不要作为手写主路径（避免与校验脚本不一致）。
 
 ## 数据文件与生成命令
 
 | 角色 | 路径 |
 |------|------|
-| **权威源（人编辑）** | `plugin/references/semantic-trap-lexicon.md` |
-| **生成物（勿手改为主流程）** | `plugin/lib/lexicon-data.js` |
+| **权威源（人编辑）** | `references/semantic-trap-lexicon.md` |
+| **生成物（勿手改为主流程）** | `lib/lexicon-data.js` |
 
 ```bash
 # 修改 MD 表格后执行：重新生成 lexicon-data.js
@@ -57,7 +57,7 @@ npm run build-lexicon:check
 
 ### STEP 1：读取当前词典
 
-1. 读取 `plugin/references/semantic-trap-lexicon.md` 中各表格，或 `require('plugin/lib/lexicon-data.js')` 使用已生成的 `zhPairs` / `enPairs` 向用户展示概览（二者应一致；若不一致先运行 `npm run build-lexicon:check` 定位）。
+1. 读取 `references/semantic-trap-lexicon.md` 中各表格，或 `require('./lib/lexicon-data.js')` 使用已生成的 `wideWordsZh` / `wideWordsEn` 向用户展示概览（二者应一致；若不一致先运行 `npm run build-lexicon:check` 定位）。
 
 概览示例：
 
@@ -101,7 +101,7 @@ npm run build-lexicon:check
 
 ### STEP 3：执行修改（仅改 MD → 生成）
 
-1. **编辑** `plugin/references/semantic-trap-lexicon.md`  
+1. **编辑** `references/semantic-trap-lexicon.md`  
    - 在「高危词汇对」「扩展词汇对」「英文环境高危词汇对」等对应表格中 **增/改/删** 行，列格式与现有行保持一致。  
    - 若变更影响说明，检查「LLM 语义敏感度矩阵」是否需同步调整。
 
@@ -118,7 +118,7 @@ npm run build-lexicon
 ```bash
 npm test
 npm run build-lexicon:check
-npm run scan -- plugin/references/semantic-trap-lexicon.md
+npm run scan -- references/semantic-trap-lexicon.md
 ```
 
 向用户展示命令输出与更新后的概览。

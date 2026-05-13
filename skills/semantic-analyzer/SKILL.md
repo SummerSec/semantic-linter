@@ -21,8 +21,8 @@ Hook 覆盖已入库的 wide 词；本 Skill 补未入库项与语境叠加。
 
 - **模板与 fenced 示例**（如 STEP 2b 代码块内的演示词）仅用于说明维度，**勿原样复制进生产 Skill**；本仓库会对 `plugin/skills/` 下 Markdown 跑 linter。
 - **四维打分带主观性**；是否收录词典须与用户对齐。
-- **收录新词**：仅允许改 `plugin/references/semantic-trap-lexicon.md` → `npm run build-lexicon` → `npm test`；**禁止**把 `lexicon-data.js` 当手写主路径。
-- 已知 wide 词以 `require('./plugin/lib/lexicon-data.js')` 的 `wideWordsZh` / `wideWordsEn`（或 `zhPairs` / `enPairs`）为准做去重。
+- **收录新词**：仅允许改 `references/semantic-trap-lexicon.md` → `npm run build-lexicon` → `npm test`；**禁止**把 `lexicon-data.js` 当手写主路径。
+- 已知 wide 词以 `require('./lib/lexicon-data.js')` 的 `wideWordsZh` / `wideWordsEn`（或 `zhPairs` / `enPairs`）为准做去重。
 
 ## 语义陷阱的四个判定特征
 
@@ -39,8 +39,8 @@ Hook 覆盖已入库的 wide 词；本 Skill 补未入库项与语境叠加。
 
 - 文本来源：用户粘贴、给定路径、或当前编辑中的指令文件。  
 - **已知词典**：在仓库根下执行  
-  `const lex = require('./plugin/lib/lexicon-data.js')`  
-  使用 `lex.wideWordsZh`、`lex.wideWordsEn`（或 `lex.zhPairs` / `lex.enPairs`）判断某 surface 是否**已登记为 wide**；已登记则本层不再重复展开（Hook 已覆盖）。
+  `const lex = require('./lib/lexicon-data.js')`  
+  使用 `lex.wideWordsZh`、`lex.wideWordsEn` 判断某 surface 是否**已登记为 wide**；已登记则本层不再重复展开（Hook 已覆盖）。
 
 ### STEP 2：逐句深度语义扫描
 

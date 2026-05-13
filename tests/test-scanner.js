@@ -4,30 +4,16 @@
  * 使用 Node.js 内置 assert 模块（零依赖）
  */
 
-const assert = require('assert');
 const path = require('path');
 const { execFileSync } = require('child_process');
+
+const { test, summary, exitOnFailure, assert } = require('./helpers');
 
 const libDir = path.join(__dirname, '..', 'lib');
 const fileDetector = require(path.join(libDir, 'file-detector'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
-
-let passed = 0;
-let failed = 0;
-
-function test(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log(`  \u2713 ${name}`);
-  } catch (err) {
-    failed++;
-    console.log(`  \u2717 ${name}`);
-    console.log(`    ${err.message}`);
-  }
-}
 
 // ========== 文件检测器测试 ==========
 console.log('\n--- 文件检测器 (file-detector) ---');
@@ -405,5 +391,5 @@ test('CLI --help 显示帮助', () => {
 });
 
 // ========== 测试结果汇总 ==========
-console.log(`\n--- 结果：${passed} 个通过, ${failed} 个失败 ---\n`);
-process.exit(failed > 0 ? 1 : 0);
+summary();
+exitOnFailure();

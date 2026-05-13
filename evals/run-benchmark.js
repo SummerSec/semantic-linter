@@ -8,22 +8,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const libDir = path.join(__dirname, '..', 'plugin', 'lib');
+const libDir = path.join(__dirname, '..', 'lib');
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const structuralAnalyzer = require(path.join(libDir, 'structural-analyzer'));
 const { getToolVersion } = require(path.join(libDir, 'meta'));
+const { ANSI } = require(path.join(libDir, 'report-formatter'));
 
 const CORPUS_DIR = path.join(__dirname, 'corpus');
 const EXPECTED_FILE = path.join(__dirname, 'expected.json');
-
-const ANSI = {
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  reset: '\x1b[0m',
-};
 
 function loadExpected() {
   const raw = fs.readFileSync(EXPECTED_FILE, 'utf8');

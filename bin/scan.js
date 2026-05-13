@@ -21,17 +21,7 @@ const reportFormatter = require(path.join(libDir, 'report-formatter'));
 const configLoader = require(path.join(libDir, 'config-loader'));
 const { getToolVersion, JSON_SCHEMA_VERSION } = require(path.join(libDir, 'meta'));
 
-const PKG_VERSION = require(path.join(__dirname, '..', 'package.json')).version;
-
-const ANSI = {
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  underline: '\x1b[4m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  reset: '\x1b[0m',
-};
+const { ANSI } = reportFormatter;
 
 const SKIP_DIRS = new Set(['node_modules', '.git', '.svn', '__pycache__', '.claude']);
 

@@ -1,6 +1,6 @@
 ---
 name: semantic-linter-shot
-description: Lightweight semantic trap word detector — single-file reference card for identifying wide-boundary vocabulary in LLM instruction files. Use when writing or reviewing Skill/Prompt/Agent instructions. Trigger keywords include "quick scan", "trap check", "check wording", "词汇检查", "快速检测", "陷阱检查".
+description: This skill should be used when the user asks to "quick scan", "trap check", "check wording", "词汇检查", "快速检测", "陷阱检查", or when writing/reviewing Skill/Prompt/Agent instructions. Provides a lightweight single-file reference card for identifying wide-boundary vocabulary in LLM instruction files.
 ---
 
 # Semantic Trap Word Detector (Shot Mode)
@@ -9,7 +9,7 @@ A concentrated, single-file reference for detecting semantic trap words in LLM i
 
 ## Source of truth（与完整插件的关系）
 
-本文件中的表格是**便携速查**。权威词表、严重等级与失控场景说明以仓库内 **`plugin/references/semantic-trap-lexicon.md`** 为准；安装完整插件时，运行时数据由 **`npm run build-lexicon`** 从该 MD 生成 **`plugin/lib/lexicon-data.js`**。若速查表与 MD 不一致，**以 MD / 生成结果为准**。
+本文件中的表格是**便携速查**。权威词表、严重等级与失控场景说明以仓库内 **`references/semantic-trap-lexicon.md`** 为准；安装完整插件时，运行时数据由 **`npm run build-lexicon`** 从该 MD 生成 **`lib/lexicon-data.js`**。若速查表与 MD 不一致，**以 MD / 生成结果为准**。
 
 ## Gotchas
 

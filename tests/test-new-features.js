@@ -6,26 +6,12 @@
  * Uses Node.js built-in assert (zero dependencies)
  */
 
-const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
 
-let passed = 0;
-let failed = 0;
-
-function test(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log(`  \u2713 ${name}`);
-  } catch (err) {
-    failed++;
-    console.log(`  \u2717 ${name}`);
-    console.log(`    ${err.message}`);
-  }
-}
+const { test, summary, exitOnFailure, getPassed, getFailed, assert } = require('./helpers');
 
 // ========== State Manager Tests ==========
 console.log('\n--- State Manager (state-manager) ---');
@@ -390,5 +376,5 @@ try {
 }
 delete process.env.SEMANTIC_LINTER_STATE_DIR;
 
-console.log(`\n===== New Features: ${passed} passed, ${failed} failed =====`);
-if (failed > 0) process.exit(1);
+console.log(`\n===== New Features: ${getPassed()} passed, ${getFailed()} failed =====`);
+exitOnFailure();

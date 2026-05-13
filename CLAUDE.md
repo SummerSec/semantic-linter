@@ -21,10 +21,14 @@ npm run scan -- --json <file>   # JSON 格式输出
 # 评估基准测试（8 个语料文件，精确率/召回率）
 npm run benchmark
 
-# 从 semantic-trap-lexicon.md 生成 plugin/lib/lexicon-data.js
+# 从 semantic-trap-lexicon.md 生成 lib/lexicon-data.js
 npm run build-lexicon
 # 校验已生成词典与 Markdown 一致（不写盘）
 npm run build-lexicon:check
+
+# 运行单个测试文件
+npm run test:legacy        # 仅核心功能测试（test-scanner.js）
+npm run test:new           # 仅新功能测试（test-new-features.js）
 ```
 
 ## 架构概览
@@ -129,22 +133,50 @@ wideWordsEn: Map {
 
 ### Skill 集成
 
-`plugin/skills/semantic-analyzer/SKILL.md` — 实时语义分析 skill（第 3 层防线）：
+`skills/semantic-analyzer/SKILL.md` — 实时语义分析 skill（第 3 层防线）：
 - 超越固定词典，利用 Claude 语义理解动态发现新陷阱词
 - 四维评分体系：程度性、展望性、主观评价性、关联松散度（0-12 分）
 - 上下文风险增强分析：语义叠加、隐式宽边界、否定句反转
 - 新发现的高频词可通过 lexicon-manager 收录到词典
 
-`plugin/skills/lexicon-manager/SKILL.md` — 词典维护 skill：
+`skills/lexicon-manager/SKILL.md` — 词典维护 skill：
 - 交互式添加、修改、删除语义陷阱词汇对
 - 自动同步 `lexicon-data.js` 和 `semantic-trap-lexicon.md`
 - 字段验证（ID 唯一性、severity 合法性等）
 - 修改后自动运行 `npm test` 验证
 
-`plugin/skills/semantic-linter-shot/SKILL.md` — 轻量级单文件 skill（Shot 模式）：
+`skills/semantic-linter-shot/SKILL.md` — 轻量级单文件 skill（Shot 模式）：
 - 自包含的语义陷阱词参考卡，无需安装完整插件
 - 包含完整 27 对陷阱词表格和 4 种结构风险描述
 - 适用于快速采用和入门用户
+
+`plugin/skills/semantic-analyzer/references/report-template.md` — 插件侧语义分析报告模板。
+
+### 插件清单
+
+`.claude-plugin/` 目录包含 Claude Code 插件系统的发现入口：
+- `plugin.json` — 插件声明（名称、版本、hooks 路径 `./hooks/hooks.json`、skills 路径 `./skills/`）
+- `marketplace.json` — 插件市场条目元数据（分类、主页、来源路径）
+
+### 词典生成流程
+
+`scripts/build-lexicon.js` 将权威 Markdown 词典（`references/semantic-trap-lexicon.md`）解析并生成 `lib/lexicon-data.js`：
+- `npm run build-lexicon` — 写入生成的 JS 文件
+- `npm run build-lexicon:check` — 仅校验已生成文件与 Markdown 一致（CI 中使用）
+- 解析规则：中文表 6 列（`| T01 | 窄边界词 | 宽边界词 | 严重等级 | 场景 |`），英文表 5 列（含 `/` 分隔的变体）
+- `npm test` 已包含 `build-lexicon:check`，确保生成的词典不会过时
+
+`.semantic-linter.json` 项目配置文件由 `lib/config-loader.js` 加载，从**被扫描文件所在目录向上**逐级查找：
+- `ignoreTrapIds` — 按 ID 忽略指定陷阱词（如 `["T01", "E03"]`）
+- `ignorePathSubstrings` — 路径子串命中则跳过整个文件
+- `ignoreStructuralTypes` — 关闭指定结构规则（如 `["open_ended_verb"]`）
+- UserPromptSubmit 扫描使用当前工作目录向上查找同一份配置文件
+
+### 版本元数据
+
+`lib/meta.js` 提供跨模块使用的版本信息：
+- `getToolVersion()` — 读取根目录 `package.json` 的 `version` 字段，所有 hook/CLI 输出共用
+- `JSON_SCHEMA_VERSION` — JSON 输出结构版本号，仅在字段含义变更时递增
 
 ### 主动提示机制
 
@@ -167,6 +199,51 @@ wideWordsEn: Map {
 - UserPromptSubmit Hook 测试：检测、清洁输入、格式
 - 升级系统测试：L0-L3 报告格式
 - 元数据验证测试：plugin.json、基准语料
+
+## 项目结构
+
+```
+semantic-linter/
+├── bin/scan.js                  # CLI 主动扫描入口
+├── hooks/                       # 4 个 Hook 脚本 + hooks.json 注册配置
+│   ├── hooks.json               # Hook 事件注册（SessionStart/UserPromptSubmit/PreToolUse/PostToolUse）
+│   ├── session-start.js         # SessionStart：注入陷阱词意识上下文
+│   ├── prompt-scanner.js        # UserPromptSubmit：扫描用户指令中的陷阱词
+│   ├── pre-tool-use.js          # PreToolUse：Write/Edit 前预警
+│   └── semantic-linter.js       # PostToolUse：Write/Edit 后确认 + 升级记录
+├── lib/                         # 核心检测库（零外部依赖）
+│   ├── file-detector.js         # 阶段 1：基于路径模式的指令文件检测
+│   ├── content-scanner.js       # 阶段 2：词典匹配 + 上下文角色分类
+│   ├── lexicon-data.js          # 预编译陷阱词数据库（由 build-lexicon 生成）
+│   ├── structural-analyzer.js   # 阶段 3：4 种结构性风险检测
+│   ├── report-formatter.js      # 阶段 4：Pre/Post/CLI/Prompt 四种报告格式
+│   ├── state-manager.js         # 状态持久化 + 升级系统（L0-L3）
+│   ├── config-loader.js         # .semantic-linter.json 项目配置加载
+│   └── meta.js                  # 版本号 + JSON schema 版本
+├── scripts/build-lexicon.js     # 从 references/ 的 MD 生成 lexicon-data.js
+├── references/                  # 权威词典源文件
+│   └── semantic-trap-lexicon.md # 27 组陷阱词的权威 Markdown 定义
+├── skills/                      # 插件 Skill 文件（plugin.json 指向此处）
+│   ├── semantic-analyzer/       # 第 3 层语义分析 skill
+│   ├── lexicon-manager/         # 词典维护 skill
+│   └── semantic-linter-shot/    # 轻量级单文件 skill
+├── plugin/                      # 额外插件资源
+│   ├── lib/                     # 插件侧 lib 副本（config-loader.js、meta.js）
+│   └── skills/semantic-analyzer/references/  # 报告模板
+├── tests/
+│   ├── test-scanner.js          # 核心功能测试（~50 个用例）
+│   ├── test-new-features.js     # 新功能测试（~38 个用例）
+│   └── fixtures/                # 测试用 sample skill 文件
+├── evals/
+│   ├── corpus/                  # 8 个标注语料文件
+│   ├── expected.json            # 每个语料文件的预期结果
+│   └── run-benchmark.js         # 基准测试运行器（精确率/召回率）
+├── .claude-plugin/              # Claude Code 插件清单
+│   ├── plugin.json              # 插件声明（hooks/skills 路径）
+│   └── marketplace.json         # 市场条目元数据
+├── .github/workflows/ci.yml     # CI：push/PR 时运行 npm test
+└── docs/                        # 项目理论基础文章
+```
 
 ## 关键设计决策
 

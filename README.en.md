@@ -139,7 +139,7 @@ Hooks and the CLI persist stats under the user home directory (override with `SE
 
 ## Lexicon build
 
-Authoritative table: `plugin/references/semantic-trap-lexicon.md`. After editing it:
+Authoritative table: `references/semantic-trap-lexicon.md`. After editing it:
 
 ```bash
 npm run build-lexicon

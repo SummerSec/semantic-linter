@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 从 plugin/references/semantic-trap-lexicon.md 解析表格并生成 plugin/lib/lexicon-data.js
+ * 从 references/semantic-trap-lexicon.md 解析表格并生成 lib/lexicon-data.js
  *
  * 用法:
  *   node scripts/build-lexicon.js           写入 lexicon-data.js
@@ -154,15 +154,6 @@ for (const pair of enPairs) {
   }
 }
 
-const narrowWordsZh = new Set(zhPairs.map(p => p.narrow));
-const narrowWordsEn = new Set();
-for (const pair of enPairs) {
-  narrowWordsEn.add(pair.narrow.toLowerCase());
-  if (pair.narrowAlt) {
-    narrowWordsEn.add(pair.narrowAlt.toLowerCase());
-  }
-}
-
 // 严重等级排序（用于比较）
 const SEVERITY_ORDER = {
   'critical': 4,
@@ -177,8 +168,6 @@ module.exports = {
   enPairs,
   wideWordsZh,
   wideWordsEn,
-  narrowWordsZh,
-  narrowWordsEn,
   SEVERITY_ORDER,
 };
 `;

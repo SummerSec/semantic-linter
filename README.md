@@ -141,7 +141,7 @@ Hook 与 CLI 会在用户主目录下持久化统计（可用环境变量覆盖�
 
 ## 词典维护与生成
 
-中文/英文陷阱表以 `plugin/references/semantic-trap-lexicon.md` 为权威来源。修改表格后请执行：
+中文/英文陷阱表以 `references/semantic-trap-lexicon.md` 为权威来源。修改表格后请执行：
 
 ```bash
 npm run build-lexicon

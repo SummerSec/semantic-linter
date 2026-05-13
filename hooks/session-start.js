@@ -55,17 +55,12 @@ if (require.main === module) {
       // state-manager unavailable, use defaults
     }
 
-    const context = buildContext(sessionStats, topTraps);
-
-    const result = {
+    console.log(JSON.stringify({
       hookSpecificOutput: {
         hookEventName: 'SessionStart',
-        additionalContext: context,
+        additionalContext: buildContext(sessionStats, topTraps),
       },
-    };
-
-    console.log(JSON.stringify(result));
-    process.exit(0);
+    }));
   } catch {
     console.log(JSON.stringify({
       hookSpecificOutput: {
@@ -73,6 +68,6 @@ if (require.main === module) {
         additionalContext: 'STL：semantic-linter 已启用；会在指令类文件中检测宽边界词，易使模型输出范围失焦。',
       },
     }));
-    process.exit(0);
   }
+  process.exit(0);
 }

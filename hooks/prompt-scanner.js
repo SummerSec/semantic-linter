@@ -7,59 +7,32 @@
  * content-scanner. If found, injects a concise warning via systemMessage.
  */
 
-const fs = require('fs');
 const path = require('path');
 
 const libDir = path.join(__dirname, '..', 'lib');
+const { readStdin, outputJson, recordDetection } = require(path.join(libDir, 'hook-utils'));
 const contentScanner = require(path.join(libDir, 'content-scanner'));
 const reportFormatter = require(path.join(libDir, 'report-formatter'));
 const configLoader = require(path.join(libDir, 'config-loader'));
 
-// Read stdin
-let input = {};
-try {
-  const stdinData = fs.readFileSync(0, 'utf8');
-  if (stdinData.trim()) {
-    input = JSON.parse(stdinData);
-  }
-} catch {
-  // Use default empty object
-}
+const input = readStdin();
+const userMessage = input.user_prompt || '';
+
+if (!userMessage.trim()) outputJson({});
 
 try {
-  const userMessage = input.prompt || '';
-
-  if (!userMessage.trim()) {
-    console.log(JSON.stringify({}));
-    process.exit(0);
-  }
-
-  // Scan user prompt for trap words (skip structural analysis)
   const cfg = configLoader.loadConfigForWorkspace();
   let matches = contentScanner.scan(userMessage);
   matches = configLoader.applyConfig(matches, [], cfg).lexiconMatches;
 
-  if (matches.length === 0) {
-    console.log(JSON.stringify({}));
-    process.exit(0);
+  if (matches.length === 0) outputJson({});
+
+  for (const m of matches) {
+    recordDetection(libDir, m.trapId, m.word, '__user_prompt__');
   }
 
-  // Record detections if state-manager is available
-  try {
-    const stateManager = require(path.join(libDir, 'state-manager'));
-    for (const m of matches) {
-      stateManager.recordDetection(m.trapId, m.word, '__user_prompt__');
-    }
-  } catch {
-    // state-manager unavailable
-  }
-
-  // Format concise warning
   const warning = reportFormatter.formatPromptWarning(matches);
-
-  console.log(JSON.stringify({ continue: true, systemMessage: warning }));
-  process.exit(0);
+  outputJson({ continue: true, systemMessage: warning });
 } catch {
-  console.log(JSON.stringify({}));
-  process.exit(0);
+  outputJson({});
 }
