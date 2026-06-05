@@ -13,6 +13,8 @@
     "scan": "node bin/scan.js",
     "benchmark": "node evals/run-benchmark.js",
     "build-lexicon": "node scripts/build-lexicon.js",
-    "build-lexicon:check": "node scripts/build-lexicon.js --check"
+    "build-lexicon:check": "node scripts/build-lexicon.js --check",
+    "build-rules": "node scripts/build-rules.js",
+    "build-rules:check": "node scripts/build-rules.js --check"
   }
 }
