@@ -9,7 +9,7 @@
 ## 常用命令
 
 ```bash
-# 运行全部测试（含 build-lexicon --check）
+# 运行全部测试（pretest 自动先跑 build-lexicon:check + build-rules:check）
 npm test
 
 # CLI 主动扫描
@@ -164,7 +164,7 @@ wideWordsEn: Map {
 - `npm run build-lexicon` — 写入生成的 JS 文件
 - `npm run build-lexicon:check` — 仅校验已生成文件与 Markdown 一致（CI 中使用）
 - 解析规则：中文表 6 列（`| T01 | 窄边界词 | 宽边界词 | 严重等级 | 场景 |`），英文表 5 列（含 `/` 分隔的变体）
-- `npm test` 已包含 `build-lexicon:check`，确保生成的词典不会过时
+- `npm test` 通过 `pretest` 钩子自动先跑 `build-lexicon:check` 与 `build-rules:check`，确保生成的词典与 CLAUDE.md 受管区都不会过时
 
 `.semantic-linter.json` 项目配置文件由 `lib/config-loader.js` 加载，从**被扫描文件所在目录向上**逐级查找：
 - `ignoreTrapIds` — 按 ID 忽略指定陷阱词（如 `["T01", "E03"]`）
@@ -184,7 +184,7 @@ wideWordsEn: Map {
 
 ### 测试策略
 
-测试使用 Node.js 内置的 `assert` 模块（零依赖），两个测试文件（运行 `npm test` 查看当前用例数；含 `build-lexicon --check`）：
+测试使用 Node.js 内置的 `assert` 模块（零依赖），两个测试文件（运行 `npm test` 查看当前用例数；`pretest` 钩子先跑 build-lexicon:check + build-rules:check）：
 
 `tests/test-scanner.js`（约 50 个测试）— 核心功能：
 - 文件检测器测试：路径模式匹配

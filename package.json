@@ -7,6 +7,7 @@
     "semantic-lint": "bin/scan.js"
   },
   "scripts": {
+    "pretest": "npm run build-lexicon:check && npm run build-rules:check",
     "test": "node tests/test-scanner.js && node tests/test-new-features.js",
     "test:legacy": "node tests/test-scanner.js",
     "test:new": "node tests/test-new-features.js",
