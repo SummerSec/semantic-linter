@@ -447,6 +447,15 @@ test('benchmark corpus files all exist', () => {
   }
 });
 
+test('rules-installer skill 存在且含 frontmatter', () => {
+  const skillPath = path.join(__dirname, '..', 'skills', 'rules-installer', 'SKILL.md');
+  assert.ok(fs.existsSync(skillPath), 'skills/rules-installer/SKILL.md 不存在');
+  const text = fs.readFileSync(skillPath, 'utf8');
+  assert.match(text, /^---[\s\S]*?name:\s*rules-installer[\s\S]*?description:[\s\S]*?---/);
+  // 引导跑脚本而非手写规则
+  assert.ok(text.includes('build-rules.js'));
+});
+
 // ========== Cleanup & Summary ==========
 try {
   fs.rmSync(tmpDir, { recursive: true });

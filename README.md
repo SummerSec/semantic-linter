@@ -31,6 +31,18 @@ semantic-linter 在每次编辑指令文件时**自动捕获**这些陷阱。
 - **零依赖**：纯 Node.js 实现，无需 npm install
 - **非阻塞**：从不中断 Vibe Coding Tools 工作流——发现的问题以警告形式注入
 
+### 五种触发方式
+
+| 触发点 | 时机 | 作用 |
+|---|---|---|
+| SessionStart Hook | 会话启动 / 恢复 / 压缩 | 注入陷阱词意识上下文（旁白式 `STL：…`） |
+| UserPromptSubmit Hook | 用户提交消息 | 扫描用户指令中的陷阱词，从源头拦截模糊指令 |
+| PreToolUse Hook | Write/Edit **之前** | 写入前预警，展示替换建议并等待确认 |
+| PostToolUse Hook | Write/Edit **之后** | 写入后确认，集成状态升级系统 |
+| CLI（`bin/scan.js`） | 手动 | 主动扫描单文件 / 目录 / 当前工作区，支持 JSON 输出 |
+
+**状态升级系统**：同一陷阱词反复出现时逐级升级警告强度（L0→L1→L2→L3），跨文件持续出现时建议添加项目级规则。统计持久化到 `$HOME/.semantic-linter/`。
+
 ## 安装
 
 ### Vercel Skills CLI
@@ -150,6 +162,23 @@ npm test
 
 校验已提交 `lexicon-data.js` 与 Markdown 一致（不写盘）：`npm run build-lexicon:check`
 
+## 约束规则注入（让模型主动自查）
+
+除了 Hook 在写入时被动报警，本插件还能把语义判定标准**作为约束规则写进 CLAUDE.md**，让模型每会话自动加载、写指令文件时主动按标准收窄宽边界词——这是「模型主动识别」相对死词典匹配的增量。
+
+规则块（四维判定标准 + 27 对「宽→窄」速查表 + 边界锚定策略 + 自查指令）由 `scripts/build-rules.js` 从词典确定性生成，写入 CLAUDE.md 的受管区（`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`），幂等可重复运行。
+
+**两种用法：**
+
+```bash
+# 开发者（仓库源码内）：注入/更新插件自己的 CLAUDE.md
+npm run build-rules
+# 校验受管区与词典一致（npm test 经 pretest 钩子自动执行）
+npm run build-rules:check
+```
+
+**安装用户**：在会话中触发 `rules-installer` skill（如说「把语义约束规则注入到 CLAUDE.md」），它会引导把规则写入**你当前项目**的 `CLAUDE.md`。
+
 ## CLI JSON 输出
 
 `--json` 结果包含 `schemaVersion`（输出结构版本）、`version`（与根目录 `package.json` 一致）、每条文件的 `skipped`（是否被 `ignorePathSubstrings` 跳过），以及 `summary.filesSkipped`。
@@ -234,25 +263,37 @@ critical > high > medium-high > medium > low
 npm test
 ```
 
-共 33 个测试用例，覆盖全部 4 个模块，使用 Node.js 内置 `assert` 模块（零测试框架依赖）。
+使用 Node.js 内置 `assert` 模块（零测试框架依赖），覆盖检测器、扫描、结构分析、报告、状态升级、Hook 与生成器。`npm test` 经 `pretest` 钩子自动先跑 `build-lexicon:check` 与 `build-rules:check`，确保生成物不过时。
 
 ## 项目结构
 
 ```
 semantic-linter/
+├── bin/scan.js                 # CLI 主动扫描入口
 ├── hooks/
-│   ├── hooks.json              # Hook 注册配置
-│   └── semantic-linter.js      # Hook 入口
+│   ├── hooks.json              # Hook 注册配置（4 事件）
+│   ├── session-start.js        # SessionStart：注入陷阱词意识上下文
+│   ├── prompt-scanner.js       # UserPromptSubmit：扫描用户指令
+│   ├── pre-tool-use.js         # PreToolUse：写入前预警
+│   └── semantic-linter.js      # PostToolUse：写入后确认 + 升级记录
 ├── lib/
 │   ├── file-detector.js        # 阶段 1：路径模式匹配
 │   ├── content-scanner.js      # 阶段 2：词典匹配 + 上下文分析
-│   ├── lexicon-data.js         # 陷阱词数据库（27 组）
+│   ├── lexicon-data.js         # 陷阱词数据库（27 组，由 build-lexicon 生成）
 │   ├── structural-analyzer.js  # 阶段 3：结构性风险检测
-│   └── report-formatter.js     # 阶段 4：Markdown 报告生成
-├── tests/
-│   └── test-scanner.js         # 33 个测试用例
+│   ├── report-formatter.js     # 阶段 4：报告生成
+│   ├── state-manager.js        # 状态持久化 + 升级系统
+│   ├── config-loader.js        # .semantic-linter.json 加载
+│   └── meta.js                 # 版本元数据
+├── scripts/
+│   ├── build-lexicon.js        # 从 MD 生成 lexicon-data.js
+│   └── build-rules.js          # 从词典生成约束规则注入 CLAUDE.md
 ├── references/
 │   └── semantic-trap-lexicon.md # 完整词典文档
+├── skills/                     # semantic-analyzer / lexicon-manager /
+│   │                           #   semantic-linter-shot / rules-installer
+├── tests/                      # test-scanner.js + test-new-features.js
+├── evals/                      # 标注语料 + 精确率/召回率基准
 ├── package.json
 └── CLAUDE.md
 ```

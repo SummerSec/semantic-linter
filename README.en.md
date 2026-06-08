@@ -31,6 +31,18 @@ semantic-linter catches these traps **automatically** every time you edit an ins
 - **Zero dependencies**: Pure Node.js, no npm install needed
 - **Non-blocking**: Never interrupts Claude's workflow — findings are injected as warnings
 
+### Five trigger points
+
+| Trigger | When | Purpose |
+|---|---|---|
+| SessionStart Hook | session start / resume / compact | Inject trap-word awareness context (narration-style `STL：…`) |
+| UserPromptSubmit Hook | user submits a message | Scan user instructions for trap words at the source |
+| PreToolUse Hook | **before** Write/Edit | Pre-write warning with replacement suggestions |
+| PostToolUse Hook | **after** Write/Edit | Post-write confirmation, integrates escalation system |
+| CLI (`bin/scan.js`) | manual | Actively scan a file / directory / workspace, with JSON output |
+
+**Escalation system**: warning intensity escalates as the same trap word recurs (L0→L1→L2→L3); persistent cross-file occurrences suggest adding a project-level rule. Stats persist under `$HOME/.semantic-linter/`.
+
 ## Installation
 
 ### Vercel Skills CLI
@@ -148,6 +160,23 @@ npm test
 
 Validate committed output without writing: `npm run build-lexicon:check`
 
+## Constraint Rule Injection (model self-checks)
+
+Beyond Hooks warning at write time, this plugin can write the semantic judgment standard **as constraint rules into CLAUDE.md**, so the model loads them every session and proactively narrows wide-boundary words while writing instruction files — the increment of "model-driven detection" over static lexicon matching.
+
+The rule block (4-dimension standard + 27 "wide→narrow" quick-reference pairs + boundary-anchoring strategies + self-check instructions) is deterministically generated from the lexicon by `scripts/build-rules.js`, written into a managed region in CLAUDE.md (`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`), idempotently.
+
+**Two ways to use it:**
+
+```bash
+# Developer (inside the repo source): inject/update the plugin's own CLAUDE.md
+npm run build-rules
+# Validate the managed region against the lexicon (run automatically by npm test via pretest)
+npm run build-rules:check
+```
+
+**Installed users**: trigger the `rules-installer` skill in a session (e.g. "install semantic rules into CLAUDE.md"); it guides writing the rules into **your current project's** `CLAUDE.md`.
+
 ## CLI JSON output
 
 `--json` includes `schemaVersion`, `version` (from root `package.json`), per-file `skipped` (path ignored by config), and `summary.filesSkipped`.
@@ -232,25 +261,37 @@ Severity is adjusted by context role:
 npm test
 ```
 
-33 test cases covering all 4 modules, using Node.js built-in `assert` (zero test framework dependencies).
+Uses Node.js built-in `assert` (zero test framework dependencies), covering the detector, scanning, structural analysis, reporting, escalation, hooks, and generators. `npm test` runs `build-lexicon:check` and `build-rules:check` first via the `pretest` hook, ensuring generated artifacts never go stale.
 
 ## Project Structure
 
 ```
 semantic-linter/
+├── bin/scan.js                 # CLI active-scan entry
 ├── hooks/
-│   ├── hooks.json              # Hook registration config
-│   └── semantic-linter.js      # Hook entry point
+│   ├── hooks.json              # Hook registration (4 events)
+│   ├── session-start.js        # SessionStart: inject trap-word context
+│   ├── prompt-scanner.js       # UserPromptSubmit: scan user instructions
+│   ├── pre-tool-use.js         # PreToolUse: pre-write warning
+│   └── semantic-linter.js      # PostToolUse: post-write confirm + escalation
 ├── lib/
 │   ├── file-detector.js        # Stage 1: Path pattern matching
 │   ├── content-scanner.js      # Stage 2: Lexicon matching + context
-│   ├── lexicon-data.js         # Trap word database (27 pairs)
+│   ├── lexicon-data.js         # Trap word database (27 pairs, generated)
 │   ├── structural-analyzer.js  # Stage 3: Structural risk detection
-│   └── report-formatter.js     # Stage 4: Markdown report generation
-├── tests/
-│   └── test-scanner.js         # 33 test cases
+│   ├── report-formatter.js     # Stage 4: Report generation
+│   ├── state-manager.js        # State persistence + escalation system
+│   ├── config-loader.js        # .semantic-linter.json loading
+│   └── meta.js                 # Version metadata
+├── scripts/
+│   ├── build-lexicon.js        # Generate lexicon-data.js from MD
+│   └── build-rules.js          # Generate constraint rules into CLAUDE.md
 ├── references/
 │   └── semantic-trap-lexicon.md # Full lexicon documentation
+├── skills/                     # semantic-analyzer / lexicon-manager /
+│   │                           #   semantic-linter-shot / rules-installer
+├── tests/                      # test-scanner.js + test-new-features.js
+├── evals/                      # Annotated corpus + precision/recall benchmark
 ├── package.json
 └── CLAUDE.md
 ```
