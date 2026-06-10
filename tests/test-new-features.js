@@ -340,7 +340,7 @@ test('build-lexicon --check 通过', () => {
   });
 });
 
-// ========== build-rules（CLAUDE.md 受管区生成器）==========
+// ========== build-rules（双文件：CLAUDE.md 指针 + semantic-rules.md 规则）==========
 console.log('\n--- build-rules ---');
 
 const ROOT_FOR_RULES = path.join(__dirname, '..');
@@ -352,70 +352,99 @@ function runBuildRules(args, cwd) {
   return execFileSync('node', [BUILD_RULES, ...args], { encoding: 'utf8', cwd });
 }
 
-test('build-rules 在空目标文件中生成受管区，含 marker 与四维标准', () => {
+// 供「指针不含陷阱词」断言使用
+const contentScanner = require(path.join(ROOT_FOR_RULES, 'lib', 'content-scanner'));
+const structuralAnalyzer = require(path.join(ROOT_FOR_RULES, 'lib', 'structural-analyzer'));
+
+// 在临时目录生成双文件，返回 { dir, claudeMd, rulesFile }
+function genInTmp() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-rules-'));
-  const target = path.join(dir, 'CLAUDE.md');
-  runBuildRules([target], ROOT_FOR_RULES);
-  const text = fs.readFileSync(target, 'utf8');
-  assert.ok(text.includes(RULES_BEGIN));
-  assert.ok(text.includes(RULES_END));
-  assert.ok(text.includes('程度性'));
-  assert.ok(text.includes('边界锚定三策略'));
+  const claudeMd = path.join(dir, 'CLAUDE.md');
+  runBuildRules([claudeMd], ROOT_FOR_RULES);
+  return { dir, claudeMd, rulesFile: path.join(dir, 'semantic-rules.md') };
+}
+
+test('build-rules 生成 CLAUDE.md 指针 + semantic-rules.md 规则文件', () => {
+  const { claudeMd, rulesFile } = genInTmp();
+  const pointer = fs.readFileSync(claudeMd, 'utf8');
+  // CLAUDE.md：含 marker、指向规则文件、说明何时读
+  assert.ok(pointer.includes(RULES_BEGIN) && pointer.includes(RULES_END));
+  assert.ok(pointer.includes('semantic-rules.md'));
+  // 规则全文不再塞进 CLAUDE.md 受管区（四维等内容应在规则文件里）
+  assert.ok(!pointer.includes('边界锚定三策略'));
+  // 规则文件：含四维、锚定、自查
+  assert.ok(fs.existsSync(rulesFile));
+  const rules = fs.readFileSync(rulesFile, 'utf8');
+  assert.ok(rules.includes('程度性'));
+  assert.ok(rules.includes('边界锚定三策略'));
 });
 
-test('受管区条目数与词典对数对齐', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-rules-'));
-  const target = path.join(dir, 'CLAUDE.md');
-  runBuildRules([target], ROOT_FOR_RULES);
-  const text = fs.readFileSync(target, 'utf8');
+test('CLAUDE.md 指针受管区本身不含陷阱词（避免自我误报）', () => {
+  const { claudeMd } = genInTmp();
+  const text = fs.readFileSync(claudeMd, 'utf8');
+  const region = text.match(/<!-- STL:RULES:BEGIN -->[\s\S]*?<!-- STL:RULES:END -->/)[0];
+  const lex = contentScanner.scan(region);
+  const struct = structuralAnalyzer.analyze(region, lex);
+  assert.strictEqual(lex.length, 0, `指针含词典陷阱词: ${JSON.stringify(lex)}`);
+  assert.strictEqual(struct.length, 0, `指针含结构风险: ${JSON.stringify(struct)}`);
+});
+
+test('semantic-rules.md 条目数与词典对数对齐', () => {
+  const { rulesFile } = genInTmp();
+  const text = fs.readFileSync(rulesFile, 'utf8');
   const lex = require(path.join(ROOT_FOR_RULES, 'lib', 'lexicon-data'));
   const expected = lex.zhPairs.length + lex.enPairs.length;
-  // 每个词对渲染为一行 "| Txx | 宽 → **窄** | ..." 形式
   const rowCount = (text.match(/^\| [TE]\d+ \|/gm) || []).length;
   assert.strictEqual(rowCount, expected);
 });
 
-test('build-rules 幂等：二次运行不改变内容', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-rules-'));
-  const target = path.join(dir, 'CLAUDE.md');
-  runBuildRules([target], ROOT_FOR_RULES);
-  const first = fs.readFileSync(target, 'utf8');
-  runBuildRules([target], ROOT_FOR_RULES);
-  const second = fs.readFileSync(target, 'utf8');
-  assert.strictEqual(first, second);
+test('semantic-rules.md 不被当作指令文件（hook 不会扫它）', () => {
+  const fileDetector = require(path.join(ROOT_FOR_RULES, 'lib', 'file-detector'));
+  assert.ok(!fileDetector.isInstructionFile(path.join(ROOT_FOR_RULES, 'semantic-rules.md')));
 });
 
-test('build-rules 保留受管区外的已有内容', () => {
+test('build-rules 幂等：二次运行两份均不变', () => {
+  const { claudeMd, rulesFile } = genInTmp();
+  const c1 = fs.readFileSync(claudeMd, 'utf8');
+  const r1 = fs.readFileSync(rulesFile, 'utf8');
+  runBuildRules([claudeMd], ROOT_FOR_RULES);
+  assert.strictEqual(fs.readFileSync(claudeMd, 'utf8'), c1);
+  assert.strictEqual(fs.readFileSync(rulesFile, 'utf8'), r1);
+});
+
+test('build-rules 保留 CLAUDE.md 受管区外的已有内容', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-rules-'));
-  const target = path.join(dir, 'CLAUDE.md');
-  fs.writeFileSync(target, '# 我的项目\n\n保留这段说明。\n');
-  runBuildRules([target], ROOT_FOR_RULES);
-  const text = fs.readFileSync(target, 'utf8');
+  const claudeMd = path.join(dir, 'CLAUDE.md');
+  fs.writeFileSync(claudeMd, '# 我的项目\n\n保留这段说明。\n');
+  runBuildRules([claudeMd], ROOT_FOR_RULES);
+  const text = fs.readFileSync(claudeMd, 'utf8');
   assert.ok(text.includes('保留这段说明。'));
   assert.ok(text.includes(RULES_BEGIN));
 });
 
-test('build-rules --check：一致返回 0，篡改返回非 0', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-rules-'));
-  const target = path.join(dir, 'CLAUDE.md');
-  runBuildRules([target], ROOT_FOR_RULES);
-  // 一致：不抛错即退出码 0
-  runBuildRules(['--check', target], ROOT_FOR_RULES);
-  // 篡改受管区内一字符 → check 应以非 0 退出（execFileSync 抛错）
-  const tampered = fs.readFileSync(target, 'utf8').replace('程度性', 'XXX');
-  fs.writeFileSync(target, tampered);
-  assert.throws(() => runBuildRules(['--check', target], ROOT_FOR_RULES));
+test('build-rules --check：一致=0，篡改 CLAUDE.md 指针=非0', () => {
+  const { claudeMd } = genInTmp();
+  runBuildRules(['--check', claudeMd], ROOT_FOR_RULES);
+  const tampered = fs.readFileSync(claudeMd, 'utf8').replace('semantic-rules.md', 'XXX.md');
+  fs.writeFileSync(claudeMd, tampered);
+  assert.throws(() => runBuildRules(['--check', claudeMd], ROOT_FOR_RULES));
 });
 
-test('build-rules --check：目标缺少受管区时返回非 0', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-rules-'));
-  const target = path.join(dir, 'CLAUDE.md');
-  fs.writeFileSync(target, '# 没有受管区的文件\n');
-  assert.throws(() => runBuildRules(['--check', target], ROOT_FOR_RULES));
+test('build-rules --check：规则文件缺失=非0', () => {
+  const { claudeMd, rulesFile } = genInTmp();
+  fs.unlinkSync(rulesFile);
+  assert.throws(() => runBuildRules(['--check', claudeMd], ROOT_FOR_RULES));
 });
 
-test('项目根 CLAUDE.md 受管区与词典保持同步', () => {
-  // 仓库自身的 CLAUDE.md 应已生成且与当前词典一致（防止提交时遗漏重新生成）
+test('build-rules --check：CLAUDE.md 缺少受管区=非0', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-rules-'));
+  const claudeMd = path.join(dir, 'CLAUDE.md');
+  fs.writeFileSync(claudeMd, '# 没有受管区的文件\n');
+  assert.throws(() => runBuildRules(['--check', claudeMd], ROOT_FOR_RULES));
+});
+
+test('项目根 CLAUDE.md 与 semantic-rules.md 均与词典保持同步', () => {
+  // 仓库自身两份产物应已生成且与当前词典一致（防止提交时遗漏重新生成）
   runBuildRules(['--check', path.join(ROOT_FOR_RULES, 'CLAUDE.md')], ROOT_FOR_RULES);
 });
 

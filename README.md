@@ -162,22 +162,25 @@ npm test
 
 校验已提交 `lexicon-data.js` 与 Markdown 一致（不写盘）：`npm run build-lexicon:check`
 
-## 约束规则注入（让模型主动自查）
+## 约束规则注入（让模型按需自查）
 
-除了 Hook 在写入时被动报警，本插件还能把语义判定标准**作为约束规则写进 CLAUDE.md**，让模型每会话自动加载、写指令文件时主动按标准收窄宽边界词——这是「模型主动识别」相对死词典匹配的增量。
+除了 Hook 在写入时被动报警，本插件还能把语义判定标准**生成为一份规则文件**，并在 CLAUDE.md 常驻一段**指针**——模型每会话只加载这段轻量指针，写指令文件时再**按需打开规则文件**主动收窄宽边界词。这是「模型主动识别」相对死词典匹配的增量，又避免规则全文每会话常驻消耗上下文。
 
-规则块（四维判定标准 + 27 对「宽→窄」速查表 + 边界锚定策略 + 自查指令）由 `scripts/build-rules.js` 从词典确定性生成，写入 CLAUDE.md 的受管区（`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`），幂等可重复运行。
+`scripts/build-rules.js` 从词典确定性生成**两份产物**（幂等可重复运行）：
+
+- **`semantic-rules.md`**（与 CLAUDE.md 同目录）— 规则全文：四维判定标准 + 27 对「宽→窄」速查表 + 边界锚定策略 + 自查指令；
+- **CLAUDE.md 受管区**（`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`）— 指针 + 场景短文本，指引模型何时去读规则文件。该段措辞刻意避开陷阱词，不会触发自身扫描误报。
 
 **两种用法：**
 
 ```bash
-# 开发者（仓库源码内）：注入/更新插件自己的 CLAUDE.md
+# 开发者（仓库源码内）：生成/更新插件自己的两份产物
 npm run build-rules
-# 校验受管区与词典一致（npm test 经 pretest 钩子自动执行）
+# 校验两份产物与词典一致（npm test 经 pretest 钩子自动执行）
 npm run build-rules:check
 ```
 
-**安装用户**：在会话中触发 `rules-installer` skill（如说「把语义约束规则注入到 CLAUDE.md」），它会引导把规则写入**你当前项目**的 `CLAUDE.md`。
+**安装用户**：在会话中触发 `rules-installer` skill（如说「把语义约束规则注入到 CLAUDE.md」），它会引导在**你当前项目**生成 `semantic-rules.md` 并写入 CLAUDE.md 指针。
 
 ## CLI JSON 输出
 
@@ -287,9 +290,10 @@ semantic-linter/
 │   └── meta.js                 # 版本元数据
 ├── scripts/
 │   ├── build-lexicon.js        # 从 MD 生成 lexicon-data.js
-│   └── build-rules.js          # 从词典生成约束规则注入 CLAUDE.md
+│   └── build-rules.js          # 从词典生成规则文件 + CLAUDE.md 指针
 ├── references/
 │   └── semantic-trap-lexicon.md # 完整词典文档
+├── semantic-rules.md           # 生成物：语义约束规则全文（CLAUDE.md 指针指向它）
 ├── skills/                     # semantic-analyzer / lexicon-manager /
 │   │                           #   semantic-linter-shot / rules-installer
 ├── tests/                      # test-scanner.js + test-new-features.js

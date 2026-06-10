@@ -160,22 +160,25 @@ npm test
 
 Validate committed output without writing: `npm run build-lexicon:check`
 
-## Constraint Rule Injection (model self-checks)
+## Constraint Rule Injection (on-demand self-check)
 
-Beyond Hooks warning at write time, this plugin can write the semantic judgment standard **as constraint rules into CLAUDE.md**, so the model loads them every session and proactively narrows wide-boundary words while writing instruction files — the increment of "model-driven detection" over static lexicon matching.
+Beyond Hooks warning at write time, this plugin can generate the semantic judgment standard **as a rules file** and keep only a **pointer** resident in CLAUDE.md — the model loads just that lightweight pointer every session, then **opens the rules file on demand** when writing instruction files to proactively narrow wide-boundary words. This is the increment of "model-driven detection" over static lexicon matching, without the full ruleset consuming context every session.
 
-The rule block (4-dimension standard + 27 "wide→narrow" quick-reference pairs + boundary-anchoring strategies + self-check instructions) is deterministically generated from the lexicon by `scripts/build-rules.js`, written into a managed region in CLAUDE.md (`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`), idempotently.
+`scripts/build-rules.js` deterministically generates **two artifacts** from the lexicon (idempotent):
+
+- **`semantic-rules.md`** (next to CLAUDE.md) — the full ruleset: 4-dimension standard + 27 "wide→narrow" quick-reference pairs + boundary-anchoring strategies + self-check instructions;
+- **CLAUDE.md managed region** (`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`) — a pointer + scenario blurb telling the model when to read the rules file. Its wording deliberately avoids trap words, so it never triggers a self-scan false positive.
 
 **Two ways to use it:**
 
 ```bash
-# Developer (inside the repo source): inject/update the plugin's own CLAUDE.md
+# Developer (inside the repo source): generate/update the plugin's own two artifacts
 npm run build-rules
-# Validate the managed region against the lexicon (run automatically by npm test via pretest)
+# Validate both artifacts against the lexicon (run automatically by npm test via pretest)
 npm run build-rules:check
 ```
 
-**Installed users**: trigger the `rules-installer` skill in a session (e.g. "install semantic rules into CLAUDE.md"); it guides writing the rules into **your current project's** `CLAUDE.md`.
+**Installed users**: trigger the `rules-installer` skill in a session (e.g. "install semantic rules into CLAUDE.md"); it guides generating `semantic-rules.md` and writing the CLAUDE.md pointer into **your current project**.
 
 ## CLI JSON output
 
@@ -285,9 +288,10 @@ semantic-linter/
 │   └── meta.js                 # Version metadata
 ├── scripts/
 │   ├── build-lexicon.js        # Generate lexicon-data.js from MD
-│   └── build-rules.js          # Generate constraint rules into CLAUDE.md
+│   └── build-rules.js          # Generate rules file + CLAUDE.md pointer
 ├── references/
 │   └── semantic-trap-lexicon.md # Full lexicon documentation
+├── semantic-rules.md           # Generated: full constraint ruleset (CLAUDE.md pointer targets it)
 ├── skills/                     # semantic-analyzer / lexicon-manager /
 │   │                           #   semantic-linter-shot / rules-installer
 ├── tests/                      # test-scanner.js + test-new-features.js
