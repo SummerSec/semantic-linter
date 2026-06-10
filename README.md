@@ -293,7 +293,6 @@ semantic-linter/
 ├── skills/                     # semantic-analyzer / lexicon-manager /
 │   │                           #   semantic-linter-shot / rules-installer
 ├── tests/                      # test-scanner.js + test-new-features.js
-├── evals/                      # 标注语料 + 精确率/召回率基准
 ├── package.json
 └── CLAUDE.md
 ```

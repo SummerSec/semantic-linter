@@ -431,22 +431,6 @@ test('plugin.json is valid JSON with required fields', () => {
   assert.ok(Array.isArray(json.keywords));
 });
 
-test('expected.json is valid JSON with files object', () => {
-  const raw = fs.readFileSync(path.join(__dirname, '..', 'evals', 'expected.json'), 'utf8');
-  const json = JSON.parse(raw);
-  assert.ok(json.files);
-  assert.ok(Object.keys(json.files).length > 0);
-});
-
-test('benchmark corpus files all exist', () => {
-  const raw = fs.readFileSync(path.join(__dirname, '..', 'evals', 'expected.json'), 'utf8');
-  const expected = JSON.parse(raw);
-  const corpusDir = path.join(__dirname, '..', 'evals', 'corpus');
-  for (const fileName of Object.keys(expected.files)) {
-    assert.ok(fs.existsSync(path.join(corpusDir, fileName)), `Missing: ${fileName}`);
-  }
-});
-
 test('rules-installer skill 存在且含 frontmatter', () => {
   const skillPath = path.join(__dirname, '..', 'skills', 'rules-installer', 'SKILL.md');
   assert.ok(fs.existsSync(skillPath), 'skills/rules-installer/SKILL.md 不存在');

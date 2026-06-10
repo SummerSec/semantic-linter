@@ -291,7 +291,6 @@ semantic-linter/
 ├── skills/                     # semantic-analyzer / lexicon-manager /
 │   │                           #   semantic-linter-shot / rules-installer
 ├── tests/                      # test-scanner.js + test-new-features.js
-├── evals/                      # Annotated corpus + precision/recall benchmark
 ├── package.json
 └── CLAUDE.md
 ```

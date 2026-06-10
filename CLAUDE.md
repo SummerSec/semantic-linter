@@ -18,9 +18,6 @@ npm run scan -- <directory>     # 递归扫描目录
 npm run scan -- --all           # 扫描当前目录
 npm run scan -- --json <file>   # JSON 格式输出
 
-# 评估基准测试（8 个语料文件，精确率/召回率）
-npm run benchmark
-
 # 从 semantic-trap-lexicon.md 生成 lib/lexicon-data.js
 npm run build-lexicon
 # 校验已生成词典与 Markdown 一致（不写盘）
@@ -123,13 +120,6 @@ wideWordsEn: Map {
 - `stats.json` — 累计陷阱词频率（永久保存）
 - `session.json` — 当前会话状态（2 小时无活动自动重置）
 - 支持升级系统：L0（正常）→ L1（同词 2 次）→ L2（同词 3+ 次）→ L3（跨 3+ 文件持续性）
-
-### 评估基准
-
-`evals/` 目录包含 8 个标注语料文件和基准测试运行器：
-- `evals/corpus/` — 标注的测试语料（干净、单陷阱、多陷阱、代码块、双语、边界情况）
-- `evals/expected.json` — 每个文件的预期结果
-- `evals/run-benchmark.js` — 计算精确率、召回率、假阳性/假阴性率
 
 ### Skill 集成
 
@@ -234,10 +224,6 @@ semantic-linter/
 │   ├── test-scanner.js          # 核心功能测试（~50 个用例）
 │   ├── test-new-features.js     # 新功能测试（~38 个用例）
 │   └── fixtures/                # 测试用 sample skill 文件
-├── evals/
-│   ├── corpus/                  # 8 个标注语料文件
-│   ├── expected.json            # 每个语料文件的预期结果
-│   └── run-benchmark.js         # 基准测试运行器（精确率/召回率）
 ├── .claude-plugin/              # Claude Code 插件清单
 │   ├── plugin.json              # 插件声明（hooks/skills 路径）
 │   └── marketplace.json         # 市场条目元数据
