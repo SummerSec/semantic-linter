@@ -469,6 +469,31 @@ test('rules-installer skill 存在且含 frontmatter', () => {
   assert.ok(text.includes('build-rules.js'));
 });
 
+test('plugin.json 声明 commands 目录', () => {
+  const raw = fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8');
+  const json = JSON.parse(raw);
+  assert.strictEqual(json.commands, './commands/');
+});
+
+test('三个 slash 命令存在且含 description frontmatter', () => {
+  const cmdDir = path.join(__dirname, '..', 'commands');
+  for (const name of ['stl-init', 'stl-rules', 'stl-lexicon']) {
+    const p = path.join(cmdDir, `${name}.md`);
+    assert.ok(fs.existsSync(p), `commands/${name}.md 不存在`);
+    const text = fs.readFileSync(p, 'utf8');
+    assert.match(text, /^---[\s\S]*?description:[\s\S]*?---/, `${name}.md 缺少 description frontmatter`);
+  }
+});
+
+test('命令文件本身不含语义陷阱词（避免自我误报）', () => {
+  const cmdDir = path.join(__dirname, '..', 'commands');
+  for (const name of ['stl-init', 'stl-rules', 'stl-lexicon']) {
+    const text = fs.readFileSync(path.join(cmdDir, `${name}.md`), 'utf8');
+    const lex = contentScanner.scan(text);
+    assert.strictEqual(lex.length, 0, `${name}.md 含陷阱词: ${JSON.stringify(lex)}`);
+  }
+});
+
 // ========== Cleanup & Summary ==========
 try {
   fs.rmSync(tmpDir, { recursive: true });

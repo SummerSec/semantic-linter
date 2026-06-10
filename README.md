@@ -117,6 +117,24 @@ cd ~/.claude/plugins/semantic-linter
 git pull
 ```
 
+## 快速开始（首次使用）
+
+装好插件后，第一次使用按以下三步即可：
+
+1. **初始化**：在你的项目里运行 `/stl-init`。它会检查插件、把语义规则铺到当前项目（生成 `semantic-rules.md` + `CLAUDE.md` 指针），并说明后续如何自动生效。
+2. **日常无感**：之后编写或修改 `/skills/`、`SKILL.md`、`CLAUDE.md` 等指令文件时，Hook 会自动提示宽边界词与窄边界替换词——无需手动操作。
+3. **按需维护**：词典更新后用 `/stl-rules` 重新生成本项目规则；要增删陷阱词用 `/stl-lexicon`。
+
+### 快捷命令
+
+| 命令 | 作用 |
+|---|---|
+| `/stl-init` | 首次使用向导：检查安装 + 铺规则到当前项目 + 说明自动生效机制 |
+| `/stl-rules` | 在当前项目生成/更新 `semantic-rules.md` 与 `CLAUDE.md` 指针（词典更新后重跑） |
+| `/stl-lexicon` | 维护陷阱词词典：增删改词汇对、调严重等级，并重新生成运行时数据 |
+
+> 命令是对 `rules-installer` / `lexicon-manager` skill 与 `build-rules` 脚本的薄封装，负责好记好触发；也可继续用自然语言触发对应 skill。
+
 ## 扫描范围
 
 Linter 对匹配以下模式的文件生效：

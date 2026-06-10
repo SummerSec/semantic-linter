@@ -117,6 +117,24 @@ cd ~/.claude/plugins/semantic-linter
 git pull
 ```
 
+## Quick Start (first use)
+
+After installing the plugin, just follow three steps the first time:
+
+1. **Initialize**: run `/stl-init` in your project. It checks the plugin, lays the semantic rules into the current project (generates `semantic-rules.md` + a `CLAUDE.md` pointer), and explains how it works going forward.
+2. **Hands-off afterward**: when you later write or edit instruction files (`/skills/`, `SKILL.md`, `CLAUDE.md`, …), Hooks automatically surface wide-boundary words and their narrow replacements — no manual step.
+3. **Maintain on demand**: after the lexicon changes, run `/stl-rules` to regenerate this project's rules; use `/stl-lexicon` to add/edit trap word pairs.
+
+### Quick commands
+
+| Command | Purpose |
+|---|---|
+| `/stl-init` | First-use wizard: check install + lay rules into the current project + explain how it auto-applies |
+| `/stl-rules` | Generate/update `semantic-rules.md` and the `CLAUDE.md` pointer in the current project (rerun after lexicon changes) |
+| `/stl-lexicon` | Maintain the trap-word lexicon: add/edit/remove pairs, adjust severity, and regenerate runtime data |
+
+> Commands are thin wrappers over the `rules-installer` / `lexicon-manager` skills and the `build-rules` script — they exist to be memorable and easy to trigger; you can still trigger the underlying skills via natural language.
+
 ## What Gets Scanned
 
 The linter activates on files matching these patterns:

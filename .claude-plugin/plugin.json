@@ -19,5 +19,6 @@
     "claude-code-hook"
   ],
   "hooks": "./hooks/hooks.json",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "commands": "./commands/"
 }
