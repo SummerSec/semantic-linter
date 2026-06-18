@@ -28,6 +28,12 @@ npm run test:legacy        # 仅核心功能测试（test-scanner.js）
 npm run test:new           # 仅新功能测试（test-new-features.js）
 ```
 
+## 版本管理
+
+- **默认用小版本迭代**：常规功能新增、修复、文档与重构均递增 **patch / minor**（如 1.3.0 → 1.3.1 或 1.4.0），不轻易升 major。
+- 仅当出现面向用户的**破坏性变更**时才升 major（如插件用法、配置格式、CLI 接口不兼容）。
+- 版本号三处需同步：`package.json`、`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`；`npm test` 含一致性校验。
+
 ## 架构概览
 
 ### 触发机制（1 Hook + CLI）
