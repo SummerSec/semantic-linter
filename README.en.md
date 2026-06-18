@@ -31,17 +31,14 @@ semantic-linter catches these traps **automatically** every time you edit an ins
 - **Zero dependencies**: Pure Node.js, no npm install needed
 - **Non-blocking**: Never interrupts Claude's workflow — findings are injected as warnings
 
-### Five trigger points
+### Two trigger points
 
 | Trigger | When | Purpose |
 |---|---|---|
-| SessionStart Hook | session start / resume / compact | Inject trap-word awareness context (narration-style `STL：…`) |
-| UserPromptSubmit Hook | user submits a message | Scan user instructions for trap words at the source |
-| PreToolUse Hook | **before** Write/Edit | Pre-write warning with replacement suggestions |
-| PostToolUse Hook | **after** Write/Edit | Post-write confirmation, integrates escalation system |
+| SessionStart Hook | session start / resume / compact | Inject a **pointer** to the semantic rules: the path to the bundled `semantic-rules.md` plus when to read it, guiding the model to self-check and narrow wide-boundary words while writing instruction files |
 | CLI (`bin/scan.js`) | manual | Actively scan a file / directory / workspace, with JSON output |
 
-**Escalation system**: warning intensity escalates as the same trap word recurs (L0→L1→L2→L3); persistent cross-file occurrences suggest adding a project-level rule. Stats persist under `$HOME/.semantic-linter/`.
+> Design stance: a **session-start pointer + on-demand rule reading** replaces per-write scan warnings — the full ruleset never stays resident in context, loaded only when writing instruction files. Use the CLI for explicit per-file checks.
 
 ## Installation
 
@@ -157,15 +154,14 @@ Place `.semantic-linter.json` in the repo or a parent directory. The linter walk
 | `ignorePathSubstrings` | If the normalized path contains a substring, the **entire file** is skipped |
 | `ignoreStructuralTypes` | e.g. `["open_ended_verb"]` to turn off specific structural rules |
 
-UserPromptSubmit scans use the same config, discovered from **the current working directory** upward.
+CLI scans (`bin/scan.js`) use `.semantic-linter.json`, discovered from the scanned file's directory upward.
 
 ## State and privacy
 
-Hooks and the CLI persist stats under the user home directory (override with `SEMANTIC_LINTER_STATE_DIR`):
+The CLI (`bin/scan.js`) persists stats under the user home directory (override with `SEMANTIC_LINTER_STATE_DIR`):
 
 - Default: `$HOME/.semantic-linter/` (Windows: `%USERPROFILE%\.semantic-linter\`)
 - Files: `stats.json`, `session.json` — may include **paths of files that were scanned**
-- **Detection counts are updated on PostToolUse** (and user-prompt scans), not on PreToolUse, so the same edit is not double-counted.
 
 ## Lexicon build
 
@@ -289,12 +285,10 @@ Uses Node.js built-in `assert` (zero test framework dependencies), covering the 
 ```
 semantic-linter/
 ├── bin/scan.js                 # CLI active-scan entry
+├── commands/                   # slash commands: stl-init / stl-rules / stl-lexicon
 ├── hooks/
-│   ├── hooks.json              # Hook registration (4 events)
-│   ├── session-start.js        # SessionStart: inject trap-word context
-│   ├── prompt-scanner.js       # UserPromptSubmit: scan user instructions
-│   ├── pre-tool-use.js         # PreToolUse: pre-write warning
-│   └── semantic-linter.js      # PostToolUse: post-write confirm + escalation
+│   ├── hooks.json              # Hook registration (SessionStart only)
+│   └── session-start.js        # SessionStart: inject semantic-rules pointer
 ├── lib/
 │   ├── file-detector.js        # Stage 1: Path pattern matching
 │   ├── content-scanner.js      # Stage 2: Lexicon matching + context

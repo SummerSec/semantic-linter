@@ -1,5 +1,5 @@
 {
-  "description": "语义陷阱检测器 - 检测 Skill/Prompt/Agent 指令文件中的语义陷阱词汇",
+  "description": "语义陷阱检测器 - 会话启动时注入语义约束规则指针，引导模型按需自查指令文件中的宽边界词",
   "hooks": {
     "SessionStart": [
       {
@@ -8,42 +8,6 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/prompt-scanner.js",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.js",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/semantic-linter.js",
             "timeout": 5
           }
         ]

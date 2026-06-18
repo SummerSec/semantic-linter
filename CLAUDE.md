@@ -30,37 +30,21 @@ npm run test:new           # 仅新功能测试（test-new-features.js）
 
 ## 架构概览
 
-### 触发机制（4 Hook + CLI）
+### 触发机制（1 Hook + CLI）
 
-该工具提供五种触发方式：
+该工具提供两种触发方式：
 
-1. **SessionStart Hook**（`hooks/session-start.js`）— 会话启动注入
+1. **SessionStart Hook**（`hooks/session-start.js`）— 会话启动注入指针
    - 在会话启动/恢复/压缩时触发
-   - 注入 `additionalContext`：旁白式 `STL：…` 短句，提醒常见陷阱词、Pre/Post 扫描范围及（如有）本会话命中与升级等级
+   - 注入 `additionalContext`：旁白式 `STL：…`，给出插件自带 `semantic-rules.md` 的绝对路径与「何时去读」，引导模型在编写指令类文件时按需打开该文件、收窄宽边界词
+   - 规则全文不常驻上下文，仅注入指针（与「按需加载」设计一致）
 
-2. **UserPromptSubmit Hook**（`hooks/prompt-scanner.js`）— 用户指令扫描
-   - 在用户提交消息时触发（匹配所有消息）
-   - 扫描用户指令文本中的陷阱词，防止模糊指令传递给 Claude
-   - 生成旁白式 `STL：…` 单行串联提示（无 Markdown 表格）
-
-3. **PreToolUse Hook**（`hooks/pre-tool-use.js`）— 写入前预警
-   - 在 Write/Edit 操作**之前**触发
-   - Write：扫描 `tool_input.content`
-   - Edit：仅扫描 `tool_input.new_string`（文件尚未修改）
-   - 指示 Claude 暂停、展示问题、提供替换方案、等待用户确认
-   - 集成升级系统：同一陷阱词反复出现时升级警告强度
-
-4. **PostToolUse Hook**（`hooks/semantic-linter.js`）— 写入后确认
-   - 在 Write/Edit 操作**之后**触发
-   - Write：扫描 `tool_input.content`
-   - Edit：读取磁盘上的完整文件
-   - 提示 Claude 告知用户检测结果并建议修复
-   - 集成升级系统：追踪跨文件持续性陷阱词
-
-5. **CLI 工具**（`bin/scan.js`）— 命令行主动扫描
+2. **CLI 工具**（`bin/scan.js`）— 命令行主动扫描
    - 支持扫描单文件、目录、当前工作区
    - 终端彩色输出 + JSON 输出模式
    - 退出码：0=无问题, 1=有发现, 2=参数错误
+
+> 历史说明：早期版本曾提供 UserPromptSubmit / PreToolUse / PostToolUse 三个写入时扫描 hook 与 L0-L3 状态升级系统；现已移除，改为「会话启动注入指针 + 模型按需自查 + CLI 手动扫描」。`lib/` 下的检测核心（content-scanner / structural-analyzer / report-formatter / state-manager）保留，供 CLI 复用。
 
 ### 核心检测流程
 
@@ -80,12 +64,9 @@ npm run test:new           # 仅新功能测试（test-new-features.js）
    - **情态动词降级**：约束条件中使用弱情态词（"应该/should"）
    - **缺少否定清单**：使用高严重级别的宽边界词但未列出排除项
 
-4. **报告格式化** (`lib/report-formatter.js`) - 生成四种格式的报告：
-   - `formatPre()` — PreToolUse 旁白式 `STL：…` 预警（串联多句，含替换理由与结构性风险旁白）
-   - `format()` — PostToolUse 旁白式 `STL：…` 确认（同上）
-   - `formatCli()` — CLI 终端彩色报告（仍为分行 ANSI 输出）
-   - `formatPromptWarning()` — UserPromptSubmit 旁白式单行提示
-   - `appendEscalationToReport()` — 将升级旁白拼接到 Pre/Post 的 `systemMessage` 末尾
+4. **报告格式化** (`lib/report-formatter.js`) - 供 CLI 与（保留的）格式化函数使用：
+   - `formatCli()` — CLI 终端彩色报告（分行 ANSI 输出）
+   - `formatPre()` / `format()` / `formatPromptWarning()` / `appendEscalationToReport()` — 旁白式 `STL：…` 格式化函数，原为已移除的写入时 hook 服务，现作为库函数保留（被单测覆盖，未来可复用）
 
 ### 词典数据结构
 
@@ -108,18 +89,14 @@ wideWordsEn: Map {
 ### Hook 集成
 
 该工具通过 `hooks/hooks.json` 与 Claude Code 集成：
-- **SessionStart**：会话启动时注入陷阱词意识上下文
-- **UserPromptSubmit**：用户消息中的陷阱词实时扫描
-- **PreToolUse**：`Write|Edit` 操作前触发预警
-- **PostToolUse**：`Write|Edit` 操作后触发确认
-- 所有 Hook 均不阻断操作（`continue: true`），通过 `systemMessage`/`additionalContext` 主动提示
+- **SessionStart**：会话启动/恢复/压缩时注入语义约束规则指针（`semantic-rules.md` 路径 + 何时去读）
+- Hook 不阻断操作（`continue: true`），通过 `additionalContext` 注入
 
 ### 状态持久化
 
-状态管理 (`lib/state-manager.js`) 持久化检测统计到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖）：
+状态管理 (`lib/state-manager.js`) 持久化检测统计到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖），供 CLI 扫描使用：
 - `stats.json` — 累计陷阱词频率（永久保存）
 - `session.json` — 当前会话状态（2 小时无活动自动重置）
-- 支持升级系统：L0（正常）→ L1（同词 2 次）→ L2（同词 3+ 次）→ L3（跨 3+ 文件持续性）
 
 ### Skill 集成
 
@@ -160,7 +137,7 @@ wideWordsEn: Map {
 - `ignoreTrapIds` — 按 ID 忽略指定陷阱词（如 `["T01", "E03"]`）
 - `ignorePathSubstrings` — 路径子串命中则跳过整个文件
 - `ignoreStructuralTypes` — 关闭指定结构规则（如 `["open_ended_verb"]`）
-- UserPromptSubmit 扫描使用当前工作目录向上查找同一份配置文件
+- CLI 扫描使用被扫描文件所在目录向上查找同一份配置文件
 
 ### 版本元数据
 
@@ -170,7 +147,7 @@ wideWordsEn: Map {
 
 ### 主动提示机制
 
-`systemMessage` / `additionalContext` 以旁白式 `STL：…` 为主，并在首句内嵌流程要求（先向用户展示、确认后再写入 / 写入后告知并询问是否修复）。
+SessionStart 通过 `additionalContext` 注入旁白式 `STL：…` 指针，给出 `semantic-rules.md` 路径与「何时去读」；CLI 输出为分行 ANSI 报告。
 
 ### 测试策略
 
@@ -180,34 +157,32 @@ wideWordsEn: Map {
 - 文件检测器测试：路径模式匹配
 - 内容扫描器测试：词汇检测、代码块去除、上下文分类
 - 结构分析器测试：4 种风险类型的模式检测
-- 报告格式化器测试：Pre/Post/CLI 三种输出模式
+- 报告格式化器测试：CLI / 旁白式输出
 - CLI 工具测试：文件扫描、目录扫描、JSON 输出、退出码
 
-`tests/test-new-features.js`（约 38 个测试）— 新功能：
-- 状态管理器测试：初始化、记录、统计、升级、容错
-- SessionStart Hook 测试：输出格式、内容、降级
-- UserPromptSubmit Hook 测试：检测、清洁输入、格式
-- 升级系统测试：L0-L3 报告格式
-- 元数据验证测试：plugin.json、基准语料
+`tests/test-new-features.js` — 新功能：
+- 状态管理器测试：初始化、记录、统计、容错
+- SessionStart Hook 测试：指针注入格式、规则文件路径
+- build-rules 双文件测试：指针 + semantic-rules.md、--check、幂等
+- slash 命令测试：commands 注册、命令文件不含陷阱词
+- 元数据验证测试：plugin.json、版本一致性
 
 ## 项目结构
 
 ```
 semantic-linter/
 ├── bin/scan.js                  # CLI 主动扫描入口
-├── hooks/                       # 4 个 Hook 脚本 + hooks.json 注册配置
-│   ├── hooks.json               # Hook 事件注册（SessionStart/UserPromptSubmit/PreToolUse/PostToolUse）
-│   ├── session-start.js         # SessionStart：注入陷阱词意识上下文
-│   ├── prompt-scanner.js        # UserPromptSubmit：扫描用户指令中的陷阱词
-│   ├── pre-tool-use.js          # PreToolUse：Write/Edit 前预警
-│   └── semantic-linter.js       # PostToolUse：Write/Edit 后确认 + 升级记录
+├── commands/                    # slash 命令：stl-init / stl-rules / stl-lexicon
+├── hooks/                       # SessionStart hook + hooks.json 注册配置
+│   ├── hooks.json               # Hook 事件注册（仅 SessionStart）
+│   └── session-start.js         # SessionStart：注入语义约束规则指针
 ├── lib/                         # 核心检测库（零外部依赖）
 │   ├── file-detector.js         # 阶段 1：基于路径模式的指令文件检测
 │   ├── content-scanner.js       # 阶段 2：词典匹配 + 上下文角色分类
 │   ├── lexicon-data.js          # 预编译陷阱词数据库（由 build-lexicon 生成）
 │   ├── structural-analyzer.js   # 阶段 3：4 种结构性风险检测
-│   ├── report-formatter.js      # 阶段 4：Pre/Post/CLI/Prompt 四种报告格式
-│   ├── state-manager.js         # 状态持久化 + 升级系统（L0-L3）
+│   ├── report-formatter.js      # CLI / 旁白式报告格式化
+│   ├── state-manager.js         # CLI 状态持久化
 │   ├── config-loader.js         # .semantic-linter.json 项目配置加载
 │   └── meta.js                  # 版本号 + JSON schema 版本
 ├── scripts/build-lexicon.js     # 从 references/ 的 MD 生成 lexicon-data.js
@@ -241,15 +216,15 @@ semantic-linter/
 
 4. **双语支持**：中文和英文使用独立的检测路径，各自拥有语言特定的标记词
 
-5. **Pre/Post 双 Hook 互补**：PreToolUse 做写入前预警（Edit 时仅扫描新内容片段），PostToolUse 做写入后全文确认
+5. **会话启动注入指针**：SessionStart 注入 `semantic-rules.md` 路径 + 何时去读，规则全文按需加载，不常驻上下文
 
-6. **主动提示设计**：Hook 输出为旁白式 `STL：…` 串联，在首句内嵌「先展示、待确认」/「告知并询问修复」等流程要求，而非长 Markdown 表格
+6. **主动提示设计**：注入内容为旁白式 `STL：…`，简短指引而非长 Markdown 表格
 
-7. **状态持久化**：检测统计持久化到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖），支持跨会话累计和会话内升级
+7. **状态持久化**：CLI 检测统计持久化到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖）
 
-8. **升级系统**：同一陷阱词反复出现时逐级升级警告强度（L0-L3），跨文件持续出现时建议添加项目级规则；**仅在 PostToolUse（及 UserPromptSubmit）中 `recordDetection`**，PreToolUse 只读会话等级、不写入，避免同一轮编辑重复计数
+8. **规则双文件外置**：`build-rules.js` 从词典生成 `semantic-rules.md`（规则全文）+ CLAUDE.md 指针；指针措辞避开陷阱词，规则文件不放指令目录以免被自身扫描
 
-9. **用户指令扫描**：UserPromptSubmit Hook 在用户消息到达模型前扫描陷阱词，从源头防止模糊指令
+9. **slash 命令薄封装**：`/stl-init`、`/stl-rules`、`/stl-lexicon` 包装底层 skill 与脚本，负责好记好触发
 
 10. **项目配置与词典生成**：`.semantic-linter.json` 可选忽略规则（`lib/config-loader.js`）；`npm run build-lexicon` 从 `semantic-trap-lexicon.md` 生成 `lexicon-data.js`
 

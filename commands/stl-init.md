@@ -34,11 +34,11 @@ node "<SCRIPT>" "$(pwd)/CLAUDE.md"
 
 向用户讲清三点：
 
-1. **写指令文件时自动提示**：Pre/PostToolUse hook 会在 Write/Edit `/skills/`、`SKILL.md`、`CLAUDE.md` 等文件时，提示宽边界词与窄边界替换词。
-2. **模型按需自查**：CLAUDE.md 里的指针会让模型在写指令文件前打开 `semantic-rules.md`，据其收窄用词。
+1. **会话启动自动注入**：SessionStart hook 会在每次会话开始时，把规则文件路径与「何时去读」的指针注入上下文——无需每次手动操作。
+2. **模型按需自查**：模型读到指针后，在写 skill / agent / command / prompt 等指令文件前打开 `semantic-rules.md`，据其把宽边界用词替换为更窄的用词。
 3. **常用快捷命令**：
    - `/stl-rules` — 词典更新后，重新生成本项目的规则文件
    - `/stl-lexicon` — 增删改陷阱词对
-   - `/stl-scan`（如需）或 `npm run scan -- <文件>` — 手动扫描某个文件
+   - `npm run scan -- <文件>` — 手动扫描某个文件
 
-最后告诉用户：日常无需手动操作，写指令文件时提示会自动出现。
+最后告诉用户：日常无需手动操作，新会话启动时指针会自动注入上下文。

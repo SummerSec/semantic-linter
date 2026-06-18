@@ -155,45 +155,33 @@ test('state-manager handles corrupted stats.json gracefully', () => {
 // ========== SessionStart Hook Tests ==========
 console.log('\n--- SessionStart Hook (session-start) ---');
 
-const { buildContext } = require(path.join(__dirname, '..', 'hooks', 'session-start'));
+const { buildContext, RULES_PATH } = require(path.join(__dirname, '..', 'hooks', 'session-start'));
 
-test('buildContext with null stats returns default trap words', () => {
-  const ctx = buildContext(null, null);
+test('buildContext 注入 STL 前缀与启用说明', () => {
+  const ctx = buildContext('/x/semantic-rules.md');
   assert.ok(ctx.startsWith('STL：'));
   assert.ok(ctx.includes('semantic-linter 已启用'));
-  assert.ok(ctx.includes('风险'));
-  assert.ok(ctx.includes('Risk'));
 });
 
-test('buildContext with session stats includes detection count', () => {
-  const stats = { detectionCount: 5, escalationLevel: 2 };
-  const ctx = buildContext(stats, null);
-  assert.ok(ctx.includes('累计 5 次命中'));
-  assert.ok(ctx.includes('L2'));
+test('buildContext 注入规则文件路径', () => {
+  const ctx = buildContext('/abs/path/semantic-rules.md');
+  assert.ok(ctx.includes('/abs/path/semantic-rules.md'));
 });
 
-test('buildContext with top traps uses dynamic trap IDs', () => {
-  const traps = [{ trapId: 'T01', count: 10 }, { trapId: 'T04', count: 5 }];
-  const ctx = buildContext(null, traps);
-  assert.ok(ctx.includes('T01'));
-  assert.ok(ctx.includes('T04'));
+test('buildContext 指引何时去读规则文件', () => {
+  const ctx = buildContext('/x/semantic-rules.md');
+  assert.ok(ctx.includes('指令'));
+  assert.ok(ctx.includes('窄'));
 });
 
-test('buildContext mentions Pre/PostToolUse hooks', () => {
-  const ctx = buildContext(null, null);
-  assert.ok(ctx.includes('PreToolUse'));
-  assert.ok(ctx.includes('PostToolUse'));
+test('RULES_PATH 指向插件自带的 semantic-rules.md', () => {
+  assert.ok(RULES_PATH.endsWith('semantic-rules.md'));
+  assert.ok(path.isAbsolute(RULES_PATH));
 });
 
-test('buildContext output is under 500 characters with defaults', () => {
-  const ctx = buildContext(null, null);
+test('buildContext output is under 500 characters', () => {
+  const ctx = buildContext(RULES_PATH);
   assert.ok(ctx.length < 500, `Context too long: ${ctx.length} chars`);
-});
-
-test('buildContext with empty session stats omits session line', () => {
-  const stats = { detectionCount: 0, escalationLevel: 0 };
-  const ctx = buildContext(stats, null);
-  assert.ok(!ctx.includes('本会话已累计'));
 });
 
 // ========== PromptScanner / formatPromptWarning Tests ==========

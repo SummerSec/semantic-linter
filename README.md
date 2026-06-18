@@ -31,17 +31,14 @@ semantic-linter 在每次编辑指令文件时**自动捕获**这些陷阱。
 - **零依赖**：纯 Node.js 实现，无需 npm install
 - **非阻塞**：从不中断 Vibe Coding Tools 工作流——发现的问题以警告形式注入
 
-### 五种触发方式
+### 两种触发方式
 
 | 触发点 | 时机 | 作用 |
 |---|---|---|
-| SessionStart Hook | 会话启动 / 恢复 / 压缩 | 注入陷阱词意识上下文（旁白式 `STL：…`） |
-| UserPromptSubmit Hook | 用户提交消息 | 扫描用户指令中的陷阱词，从源头拦截模糊指令 |
-| PreToolUse Hook | Write/Edit **之前** | 写入前预警，展示替换建议并等待确认 |
-| PostToolUse Hook | Write/Edit **之后** | 写入后确认，集成状态升级系统 |
+| SessionStart Hook | 会话启动 / 恢复 / 压缩 | 注入语义约束规则**指针**：给出插件自带 `semantic-rules.md` 的路径与「何时去读」，引导模型写指令文件时按需自查、收窄宽边界词 |
 | CLI（`bin/scan.js`） | 手动 | 主动扫描单文件 / 目录 / 当前工作区，支持 JSON 输出 |
 
-**状态升级系统**：同一陷阱词反复出现时逐级升级警告强度（L0→L1→L2→L3），跨文件持续出现时建议添加项目级规则。统计持久化到 `$HOME/.semantic-linter/`。
+> 设计取向：用**会话启动注入指针 + 模型按需读规则**取代写入时的逐次扫描报警——规则全文不常驻上下文，只在编写指令文件时按需加载。需要逐文件核查时用 CLI 主动扫描。
 
 ## 安装
 
@@ -157,17 +154,15 @@ Linter 对匹配以下模式的文件生效：
 | `ignorePathSubstrings` | 路径子串（正斜杠规范化后匹配），命中则**整文件跳过**扫描 |
 | `ignoreStructuralTypes` | 如 `["open_ended_verb"]`，关闭指定结构规则 |
 
-UserPromptSubmit（用户消息）扫描使用**当前工作目录**向上查找同一份配置文件。
+CLI 扫描（`bin/scan.js`）使用 `.semantic-linter.json`，从被扫描文件所在目录向上查找最近一份配置。
 
 ## 状态与隐私
 
-Hook 与 CLI 会在用户主目录下持久化统计（可用环境变量覆盖目录）：
+CLI 扫描（`bin/scan.js`）会在用户主目录下持久化统计（可用环境变量覆盖目录）：
 
 - 默认路径：`$HOME/.semantic-linter/`（Windows：`%USERPROFILE%\.semantic-linter\`）
 - 覆盖方式：设置环境变量 `SEMANTIC_LINTER_STATE_DIR` 指向自定义目录
-- 内容：`stats.json`（累计次数）、`session.json`（会话内升级状态），可能包含**曾扫描过的文件路径**
-
-写入成功后的检测统计仅在 **PostToolUse** 中更新，避免同一轮 Pre+Post 对同一陷阱重复计数。
+- 内容：`stats.json`（累计次数）、`session.json`（会话内状态），可能包含**曾扫描过的文件路径**
 
 ## 词典维护与生成
 
@@ -291,12 +286,10 @@ npm test
 ```
 semantic-linter/
 ├── bin/scan.js                 # CLI 主动扫描入口
+├── commands/                   # slash 命令：stl-init / stl-rules / stl-lexicon
 ├── hooks/
-│   ├── hooks.json              # Hook 注册配置（4 事件）
-│   ├── session-start.js        # SessionStart：注入陷阱词意识上下文
-│   ├── prompt-scanner.js       # UserPromptSubmit：扫描用户指令
-│   ├── pre-tool-use.js         # PreToolUse：写入前预警
-│   └── semantic-linter.js      # PostToolUse：写入后确认 + 升级记录
+│   ├── hooks.json              # Hook 注册配置（仅 SessionStart）
+│   └── session-start.js        # SessionStart：注入语义约束规则指针
 ├── lib/
 │   ├── file-detector.js        # 阶段 1：路径模式匹配
 │   ├── content-scanner.js      # 阶段 2：词典匹配 + 上下文分析

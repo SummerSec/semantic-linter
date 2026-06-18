@@ -1,73 +1,39 @@
 #!/usr/bin/env node
 /**
- * SessionStart Hook: Inject semantic trap awareness at session start
+ * SessionStart Hook: 注入语义约束规则的「按需指针」
  *
  * Event: SessionStart (matcher: startup|resume|compact)
- * Injects brief additionalContext in旁白式 STL：… style.
+ * 启用插件即在上下文注入一段指针：指向插件自带的 semantic-rules.md 绝对路径，
+ * 并说明何时去读。规则全文不常驻上下文，模型在写指令类文件时按需打开该文件，
+ * 据其把宽边界用词替换为更窄的用词。
  */
 
 const path = require('path');
 
-const libDir = path.join(__dirname, '..', 'lib');
-
-// Default top trap words (used when state-manager is unavailable)
-const DEFAULT_TOP_TRAPS = [
-  { zh: '风险', en: 'Risk', narrow: '漏洞/Vulnerability' },
-  { zh: '审查', en: 'Review', narrow: '检查/Check' },
-  { zh: '问题', en: 'Issue', narrow: '缺陷/Defect' },
-  { zh: '分析', en: 'Analyze', narrow: '总结/Summarize' },
-  { zh: '改善', en: 'Improve', narrow: '修复/Fix' },
-];
+// 插件自带的规则文件（由 build-rules 生成，随插件分发，开箱即用）
+const RULES_PATH = path.resolve(path.join(__dirname, '..', 'semantic-rules.md'));
 
 /**
- * Build the additionalContext string.
- * @param {Object|null} sessionStats - from state-manager, or null
- * @param {Array|null} topTraps - from state-manager, or null
+ * 构造注入上下文：指向规则文件 + 何时去读。
+ * @param {string} rulesPath - semantic-rules.md 的绝对路径
  * @returns {string}
  */
-function buildContext(sessionStats, topTraps) {
-  const traps = (topTraps && topTraps.length > 0)
-    ? topTraps.slice(0, 5).map(t => t.trapId).join('、')
-    : DEFAULT_TOP_TRAPS.map(t => `${t.zh}/${t.en}→${t.narrow}`).join('；');
-
-  let sessionPart = '';
-  if (sessionStats && sessionStats.detectionCount > 0) {
-    sessionPart = ` STL：本会话已累计 ${sessionStats.detectionCount} 次命中，当前升级等级 L${sessionStats.escalationLevel || 0}。`;
-  }
-
-  return `STL：semantic-linter 已启用；PreToolUse 与 PostToolUse 会在指令类文件的 Write/Edit 前后扫描宽边界词。常见示例：${traps}。这些词易使输出范围失焦。${sessionPart}`.trim();
+function buildContext(rulesPath) {
+  return `STL：semantic-linter 已启用。语义约束规则文件位于 ${rulesPath}。`
+    + `编写或修改 skill / agent / command / prompt 等指令类文件前，先读该文件，`
+    + `据其把宽边界用词替换为更窄的用词；必须保留宽边界词时，套用其中的边界锚定策略。`;
 }
 
 // Export for testing
-module.exports = { buildContext };
+module.exports = { buildContext, RULES_PATH };
 
 // Only execute when run directly (not when required by tests)
 if (require.main === module) {
-  try {
-    let sessionStats = null;
-    let topTraps = null;
-    try {
-      const stateManager = require(path.join(libDir, 'state-manager'));
-      stateManager.initState();
-      sessionStats = stateManager.getSessionStats();
-      topTraps = stateManager.getTopTraps(5);
-    } catch {
-      // state-manager unavailable, use defaults
-    }
-
-    console.log(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'SessionStart',
-        additionalContext: buildContext(sessionStats, topTraps),
-      },
-    }));
-  } catch {
-    console.log(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'SessionStart',
-        additionalContext: 'STL：semantic-linter 已启用；会在指令类文件中检测宽边界词，易使模型输出范围失焦。',
-      },
-    }));
-  }
+  console.log(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: buildContext(RULES_PATH),
+    },
+  }));
   process.exit(0);
 }
