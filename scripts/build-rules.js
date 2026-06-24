@@ -2,17 +2,17 @@
 /**
  * 从 lib/lexicon-data.js 生成语义约束规则，产出两份文件：
  *   1) <dir>/semantic-rules.md —— 规则全文（四维标准 + 27 对速查表 + 锚定策略 + 自查指令）
- *   2) <dir>/CLAUDE.md 受管区 —— 仅「指针 + 场景」短文本，指引模型按需去读 semantic-rules.md
+ *   2) <target>.md 受管区 —— 仅「指针 + 场景」短文本，指引模型按需去读 semantic-rules.md
  *
  * 设计动机：Hook 是纯 Node 脚本，运行时无法调用大模型。把语义判定标准写成规则文件，
- * 并在 CLAUDE.md 常驻一段轻量指针——模型读到指针后，在写指令文件时按需加载完整规则，
+ * 并在项目级指令文件常驻一段轻量指针——模型读到指针后，在写指令文件时按需加载完整规则，
  * 既保住「模型主动收窄陷阱词」的能力，又避免规则全文每会话常驻消耗上下文。
  *
  * 数据同源：直接 require 词典模块（由 build-lexicon 从 MD 生成），不重复解析。
  *
  * 用法:
- *   node scripts/build-rules.js [claudeMdPath]           写入规则文件 + CLAUDE.md 指针（默认 ./CLAUDE.md）
- *   node scripts/build-rules.js --check [claudeMdPath]   仅校验两份产物与当前词典一致（不写盘）
+ *   node scripts/build-rules.js [targetMdPath]           写入规则文件 + 指针（默认 ./CLAUDE.md）
+ *   node scripts/build-rules.js --check [targetMdPath]   仅校验两份产物与当前词典一致（不写盘）
  */
 
 const fs = require('fs');
@@ -24,7 +24,7 @@ const LEXICON_PATH = path.join(ROOT, 'lib', 'lexicon-data.js');
 const BEGIN = '<!-- STL:RULES:BEGIN -->';
 const END = '<!-- STL:RULES:END -->';
 
-// 规则文件名（与 CLAUDE.md 同目录）
+// 规则文件名（与目标指令文件同目录）
 const RULES_FILENAME = 'semantic-rules.md';
 
 // 严重等级 → 中文标签（展示用）
@@ -79,7 +79,7 @@ function generateRulesFile(zhPairs, enPairs, order) {
   return `# 语义陷阱约束规则（自动生成，请勿手动编辑）
 
 > 本文件由 \`npm run build-rules\` 从语义陷阱词典生成，共 ${total} 对陷阱词。
-> 词典更新后重新运行生成器即可同步；CLAUDE.md 中有一段指针指向本文件。
+> 词典更新后重新运行生成器即可同步；项目级指令文件中有一段指针指向本文件。
 
 **适用场景**：编写或修改 skill / agent / command / prompt 等**指令类文件**时。
 
@@ -127,8 +127,8 @@ ${enTableRows(enPairs, order)}
 }
 
 /**
- * 渲染 CLAUDE.md 受管区内容（指针 + 场景）。
- * 注意：措辞刻意避开词典中的宽边界词与结构触发模式，使 CLAUDE.md 自身扫描不产生误报。
+ * 渲染目标指令文件受管区内容（指针 + 场景）。
+ * 注意：措辞刻意避开词典中的宽边界词与结构触发模式，使目标文件自身扫描不产生误报。
  */
 function generatePointerBlock(total) {
   const body = `## 语义约束规则（按需加载）
@@ -175,8 +175,8 @@ function rel(p) {
 function main() {
   const argv = process.argv.slice(2);
   const check = argv.includes('--check');
-  const claudeMdPath = resolveTarget(argv);
-  const rulesPath = path.join(path.dirname(claudeMdPath), RULES_FILENAME);
+  const targetMdPath = resolveTarget(argv);
+  const rulesPath = path.join(path.dirname(targetMdPath), RULES_FILENAME);
 
   const { zhPairs, enPairs, order } = loadPairs();
   const total = zhPairs.length + enPairs.length;
@@ -193,30 +193,30 @@ function main() {
       console.error(`${rel(rulesPath)} is out of sync with the lexicon. Run: npm run build-rules`);
       process.exit(1);
     }
-    // ② 校验 CLAUDE.md 指针受管区
-    if (!fs.existsSync(claudeMdPath)) {
-      console.error(`Managed region missing: ${rel(claudeMdPath)} 不存在。Run: npm run build-rules`);
+    // ② 校验目标指令文件指针受管区
+    if (!fs.existsSync(targetMdPath)) {
+      console.error(`Managed region missing: ${rel(targetMdPath)} 不存在。Run: npm run build-rules`);
       process.exit(1);
     }
-    const region = extractManagedRegion(fs.readFileSync(claudeMdPath, 'utf8'));
+    const region = extractManagedRegion(fs.readFileSync(targetMdPath, 'utf8'));
     if (region === null) {
-      console.error(`Managed region missing in ${rel(claudeMdPath)}. Run: npm run build-rules`);
+      console.error(`Managed region missing in ${rel(targetMdPath)}. Run: npm run build-rules`);
       process.exit(1);
     }
     if (region !== pointerBlock) {
-      console.error(`Managed region in ${rel(claudeMdPath)} is out of sync. Run: npm run build-rules`);
+      console.error(`Managed region in ${rel(targetMdPath)} is out of sync. Run: npm run build-rules`);
       process.exit(1);
     }
-    console.log(`OK: ${rel(rulesPath)} 与 ${rel(claudeMdPath)} 受管区均与词典一致`);
+    console.log(`OK: ${rel(rulesPath)} 与 ${rel(targetMdPath)} 受管区均与词典一致`);
     process.exit(0);
   }
 
   // 写规则文件
   fs.writeFileSync(rulesPath, rulesContent, 'utf8');
-  // 写/更新 CLAUDE.md 指针受管区
-  const nextClaudeMd = injectIntoFile(claudeMdPath, pointerBlock);
-  fs.writeFileSync(claudeMdPath, nextClaudeMd, 'utf8');
-  console.log(`Wrote ${rel(rulesPath)} and managed pointer into ${rel(claudeMdPath)}`);
+  // 写/更新目标指令文件指针受管区
+  const nextTargetMd = injectIntoFile(targetMdPath, pointerBlock);
+  fs.writeFileSync(targetMdPath, nextTargetMd, 'utf8');
+  console.log(`Wrote ${rel(rulesPath)} and managed pointer into ${rel(targetMdPath)}`);
 }
 
 main();

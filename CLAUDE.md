@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-**semantic-linter** 是一个 Claude Code Hook 插件，用于检测 Skill/Prompt/Agent 指令文件中的语义陷阱词汇。它可以识别语义边界过宽的词汇，这些词汇可能导致大模型产生幻觉（例如使用"风险"而非更精确的"漏洞"）。
+**semantic-linter** 是一个面向 Claude Code 与 Codex 的语义约束插件/CLI，用于检测 Skill/Prompt/Agent 指令文件中的语义陷阱词汇。它可以识别语义边界过宽的词汇，这些词汇可能导致大模型产生幻觉（例如使用"风险"而非更精确的"漏洞"）。
 
 ## 常用命令
 
@@ -32,7 +32,7 @@ npm run test:new           # 仅新功能测试（test-new-features.js）
 
 - **默认用小版本迭代**：常规功能新增、修复、文档与重构均递增 **patch / minor**（如 1.3.0 → 1.3.1 或 1.4.0），不轻易升 major。
 - 仅当出现面向用户的**破坏性变更**时才升 major（如插件用法、配置格式、CLI 接口不兼容）。
-- 版本号三处需同步：`package.json`、`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`；`npm test` 含一致性校验。
+- 版本号四处需同步：`package.json`、`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`、`.codex-plugin/plugin.json`；`npm test` 含一致性校验。
 
 ## 架构概览
 
@@ -131,13 +131,17 @@ wideWordsEn: Map {
 - `plugin.json` — 插件声明（名称、版本、hooks 路径 `./hooks/hooks.json`、skills 路径 `./skills/`）
 - `marketplace.json` — 插件市场条目元数据（分类、主页、来源路径）
 
+`.codex-plugin/` 与 `.agents/plugins/` 目录包含 Codex 插件系统入口：
+- `.codex-plugin/plugin.json` — Codex 插件声明（skills 路径 `./skills/` + interface 元数据；不要写 Claude-only `hooks` / `commands` 字段）
+- `.agents/plugins/marketplace.json` — repo-local Codex marketplace，`source.path` 指向仓库根目录 `.`
+
 ### 词典生成流程
 
 `scripts/build-lexicon.js` 将权威 Markdown 词典（`references/semantic-trap-lexicon.md`）解析并生成 `lib/lexicon-data.js`：
 - `npm run build-lexicon` — 写入生成的 JS 文件
 - `npm run build-lexicon:check` — 仅校验已生成文件与 Markdown 一致（CI 中使用）
 - 解析规则：中文表 6 列（`| T01 | 窄边界词 | 宽边界词 | 严重等级 | 场景 |`），英文表 5 列（含 `/` 分隔的变体）
-- `npm test` 通过 `pretest` 钩子自动先跑 `build-lexicon:check` 与 `build-rules:check`，确保生成的词典与 CLAUDE.md 受管区都不会过时
+- `npm test` 通过 `pretest` 钩子自动先跑 `build-lexicon:check` 与 `build-rules:check`，确保生成的词典、CLAUDE.md 受管区与 AGENTS.md 受管区都不会过时
 
 `.semantic-linter.json` 项目配置文件由 `lib/config-loader.js` 加载，从**被扫描文件所在目录向上**逐级查找：
 - `ignoreTrapIds` — 按 ID 忽略指定陷阱词（如 `["T01", "E03"]`）
@@ -178,6 +182,7 @@ SessionStart 通过 `additionalContext` 注入旁白式 `STL：…` 指针，给
 ```
 semantic-linter/
 ├── bin/scan.js                  # CLI 主动扫描入口
+├── AGENTS.md                    # Codex 项目级指令文件（规则指针受管区）
 ├── commands/                    # slash 命令：stl-init / stl-rules / stl-lexicon
 ├── hooks/                       # SessionStart hook + hooks.json 注册配置
 │   ├── hooks.json               # Hook 事件注册（仅 SessionStart）
@@ -208,6 +213,10 @@ semantic-linter/
 ├── .claude-plugin/              # Claude Code 插件清单
 │   ├── plugin.json              # 插件声明（hooks/skills 路径）
 │   └── marketplace.json         # 市场条目元数据
+├── .codex-plugin/               # Codex 插件清单
+│   └── plugin.json              # 插件声明（skills 路径 + interface 元数据）
+├── .agents/plugins/             # Codex repo-local marketplace
+│   └── marketplace.json         # marketplace 条目，source.path 指向仓库根
 ├── .github/workflows/ci.yml     # CI：push/PR 时运行 npm test
 └── docs/                        # 项目理论基础文章
 ```
@@ -228,7 +237,7 @@ semantic-linter/
 
 7. **状态持久化**：CLI 检测统计持久化到 `~/.semantic-linter/`（可用 `SEMANTIC_LINTER_STATE_DIR` 覆盖）
 
-8. **规则双文件外置**：`build-rules.js` 从词典生成 `semantic-rules.md`（规则全文）+ CLAUDE.md 指针；指针措辞避开陷阱词，规则文件不放指令目录以免被自身扫描
+8. **规则双文件外置**：`build-rules.js` 从词典生成 `semantic-rules.md`（规则全文）+ 项目指令文件指针（Codex: `AGENTS.md`；Claude Code: `CLAUDE.md`）；指针措辞避开陷阱词，规则文件不放指令目录以免被自身扫描
 
 9. **slash 命令薄封装**：`/stl-init`、`/stl-rules`、`/stl-lexicon` 包装底层 skill 与脚本，负责好记好触发
 
@@ -237,7 +246,7 @@ semantic-linter/
 ## 检测的文件模式
 
 Linter 对匹配以下模式的文件生效：
-- 文件名：`skill.md`、`claude.md`（不区分大小写）
+- 文件名：`skill.md`、`agents.md`、`claude.md`（不区分大小写）
 - 文件后缀：`.prompt.md`、`_definitions.md`、`_examples.md`
 - 目录路径：`/skills/`、`/agents/`、`/commands/`、`/rules/`、`/prompts/`
 

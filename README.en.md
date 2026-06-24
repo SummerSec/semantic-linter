@@ -19,7 +19,7 @@ In LLM instruction files, some word pairs appear synonymous to humans but activa
 | issue | defect | "issue" activates debate/controversy meanings — model drifts off-topic |
 | analyze | summarize | "analyze" has no boundary — model produces unbounded output |
 
-semantic-linter catches these traps **automatically** every time you edit an instruction file.
+semantic-linter helps catch these traps while you write instruction files through project-level rule pointers and CLI scans.
 
 ## Features
 
@@ -29,7 +29,7 @@ semantic-linter catches these traps **automatically** every time you edit an ins
 - **Code block exclusion**: Skips ```` ``` ```` fenced blocks and `` ` `` inline code to avoid false positives
 - **Bilingual**: Full Chinese and English support with language-specific detection strategies
 - **Zero dependencies**: Pure Node.js, no npm install needed
-- **Non-blocking**: Never interrupts Claude's workflow — findings are injected as warnings
+- **Non-blocking**: Never interrupts Vibe Coding Tools workflows — it provides lightweight pointers and CLI reports
 
 ### Two trigger points
 
@@ -80,6 +80,32 @@ claude plugin marketplace update summersec-semantic-linter
 claude plugin update semantic-linter@summersec-semantic-linter
 ```
 
+### Codex
+
+This repository also ships a Codex plugin manifest at `.codex-plugin/plugin.json` and a local marketplace entry at `.agents/plugins/marketplace.json`.
+
+For local development install:
+
+```bash
+codex plugin marketplace add /absolute/path/to/semantic-linter
+codex plugin add semantic-linter@summersec-semantic-linter
+```
+
+For GitHub install:
+
+```bash
+codex plugin marketplace add SummerSec/semantic-linter
+codex plugin add semantic-linter@summersec-semantic-linter
+```
+
+Codex uses `AGENTS.md` as the project-level instruction file. To install the semantic rule pointer into the current project:
+
+```bash
+node /absolute/path/to/semantic-linter/scripts/build-rules.js "$(pwd)/AGENTS.md"
+```
+
+This generates/updates `semantic-rules.md` and the managed pointer in `AGENTS.md`; Codex can then open the rules file on demand when writing instruction files.
+
 ### Developer Install (Source)
 
 If you prefer to work directly from source, or want a local development install, clone the repository into your Claude plugins directory:
@@ -118,8 +144,8 @@ git pull
 
 After installing the plugin, just follow three steps the first time:
 
-1. **Initialize**: run `/stl-init` in your project. It checks the plugin, lays the semantic rules into the current project (generates `semantic-rules.md` + a `CLAUDE.md` pointer), and explains how it works going forward.
-2. **Hands-off afterward**: when you later write or edit instruction files (`/skills/`, `SKILL.md`, `CLAUDE.md`, …), Hooks automatically surface wide-boundary words and their narrow replacements — no manual step.
+1. **Initialize**: run `/stl-init`, or run `build-rules.js` directly. It checks the plugin and lays the semantic rules into the current project (Codex: `semantic-rules.md` + `AGENTS.md` pointer; Claude Code: `semantic-rules.md` + `CLAUDE.md` pointer).
+2. **Self-check afterward**: when you later write or edit instruction files (`/skills/`, `SKILL.md`, `AGENTS.md`, `CLAUDE.md`, …), the model reads the project pointer and opens the rules file on demand; use the CLI for explicit per-file checks.
 3. **Maintain on demand**: after the lexicon changes, run `/stl-rules` to regenerate this project's rules; use `/stl-lexicon` to add/edit trap word pairs.
 
 ### Quick commands
@@ -127,7 +153,7 @@ After installing the plugin, just follow three steps the first time:
 | Command | Purpose |
 |---|---|
 | `/stl-init` | First-use wizard: check install + lay rules into the current project + explain how it auto-applies |
-| `/stl-rules` | Generate/update `semantic-rules.md` and the `CLAUDE.md` pointer in the current project (rerun after lexicon changes) |
+| `/stl-rules` | Generate/update `semantic-rules.md` and the `AGENTS.md`/`CLAUDE.md` pointer in the current project (rerun after lexicon changes) |
 | `/stl-lexicon` | Maintain the trap-word lexicon: add/edit/remove pairs, adjust severity, and regenerate runtime data |
 
 > Commands are thin wrappers over the `rules-installer` / `lexicon-manager` skills and the `build-rules` script — they exist to be memorable and easy to trigger; you can still trigger the underlying skills via natural language.
@@ -138,7 +164,7 @@ The linter activates on files matching these patterns:
 
 | Pattern | Examples |
 |---|---|
-| File names | `skill.md`, `SKILL.md`, `claude.md`, `CLAUDE.md` |
+| File names | `skill.md`, `SKILL.md`, `agents.md`, `AGENTS.md`, `claude.md`, `CLAUDE.md` |
 | Suffixes | `*.prompt.md`, `*_definitions.md`, `*_examples.md` |
 | Directories | `/skills/`, `/agents/`, `/commands/`, `/rules/`, `/prompts/` |
 
@@ -176,23 +202,23 @@ Validate committed output without writing: `npm run build-lexicon:check`
 
 ## Constraint Rule Injection (on-demand self-check)
 
-Beyond Hooks warning at write time, this plugin can generate the semantic judgment standard **as a rules file** and keep only a **pointer** resident in CLAUDE.md — the model loads just that lightweight pointer every session, then **opens the rules file on demand** when writing instruction files to proactively narrow wide-boundary words. This is the increment of "model-driven detection" over static lexicon matching, without the full ruleset consuming context every session.
+Beyond explicit CLI scans, this plugin can generate the semantic judgment standard **as a rules file** and keep only a **pointer** resident in the project-level instruction file (Codex: `AGENTS.md`; Claude Code: `CLAUDE.md`) — the model loads just that lightweight pointer every session, then **opens the rules file on demand** when writing instruction files to proactively narrow wide-boundary words. This is the increment of "model-driven detection" over static lexicon matching, without the full ruleset consuming context every session.
 
-`scripts/build-rules.js` deterministically generates **two artifacts** from the lexicon (idempotent):
+`scripts/build-rules.js` deterministically generates the rules file and project instruction pointers from the lexicon (idempotent):
 
-- **`semantic-rules.md`** (next to CLAUDE.md) — the full ruleset: 4-dimension standard + 27 "wide→narrow" quick-reference pairs + boundary-anchoring strategies + self-check instructions;
-- **CLAUDE.md managed region** (`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`) — a pointer + scenario blurb telling the model when to read the rules file. Its wording deliberately avoids trap words, so it never triggers a self-scan false positive.
+- **`semantic-rules.md`** (next to the target instruction file) — the full ruleset: 4-dimension standard + 27 "wide→narrow" quick-reference pairs + boundary-anchoring strategies + self-check instructions;
+- **Project instruction managed region** (Codex: `AGENTS.md`; Claude Code: `CLAUDE.md`; marker: `<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`) — a pointer + scenario blurb telling the model when to read the rules file. Its wording deliberately avoids trap words, so it never triggers a self-scan false positive.
 
 **Two ways to use it:**
 
 ```bash
-# Developer (inside the repo source): generate/update the plugin's own two artifacts
+# Developer (inside the repo source): generate/update the plugin's rules file plus CLAUDE.md / AGENTS.md pointers
 npm run build-rules
-# Validate both artifacts against the lexicon (run automatically by npm test via pretest)
+# Validate the rules file and both project pointers against the lexicon (run automatically by npm test via pretest)
 npm run build-rules:check
 ```
 
-**Installed users**: trigger the `rules-installer` skill in a session (e.g. "install semantic rules into CLAUDE.md"); it guides generating `semantic-rules.md` and writing the CLAUDE.md pointer into **your current project**.
+**Installed users**: trigger the `rules-installer` skill in a session (e.g. "install semantic rules into AGENTS.md / CLAUDE.md"); it guides generating `semantic-rules.md` and writing the pointer into **your current project**.
 
 ## CLI JSON output
 
@@ -286,6 +312,10 @@ Uses Node.js built-in `assert` (zero test framework dependencies), covering the 
 semantic-linter/
 ├── bin/scan.js                 # CLI active-scan entry
 ├── commands/                   # slash commands: stl-init / stl-rules / stl-lexicon
+├── .codex-plugin/
+│   └── plugin.json             # Codex plugin manifest (skills + UI metadata)
+├── .agents/plugins/
+│   └── marketplace.json        # Codex local marketplace entry
 ├── hooks/
 │   ├── hooks.json              # Hook registration (SessionStart only)
 │   └── session-start.js        # SessionStart: inject semantic-rules pointer
@@ -300,14 +330,15 @@ semantic-linter/
 │   └── meta.js                 # Version metadata
 ├── scripts/
 │   ├── build-lexicon.js        # Generate lexicon-data.js from MD
-│   └── build-rules.js          # Generate rules file + CLAUDE.md pointer
+│   └── build-rules.js          # Generate rules file + project instruction pointer
 ├── references/
 │   └── semantic-trap-lexicon.md # Full lexicon documentation
-├── semantic-rules.md           # Generated: full constraint ruleset (CLAUDE.md pointer targets it)
+├── semantic-rules.md           # Generated: full constraint ruleset (project pointer targets it)
 ├── skills/                     # semantic-analyzer / lexicon-manager /
 │   │                           #   semantic-linter-shot / rules-installer
 ├── tests/                      # test-scanner.js + test-new-features.js
 ├── package.json
+├── AGENTS.md
 └── CLAUDE.md
 ```
 

@@ -1,0 +1,20 @@
+{
+  "name": "summersec-semantic-linter",
+  "interface": {
+    "displayName": "SummerSec semantic-linter"
+  },
+  "plugins": [
+    {
+      "name": "semantic-linter",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

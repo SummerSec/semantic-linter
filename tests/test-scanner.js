@@ -30,6 +30,10 @@ test('检测 CLAUDE.md', () => {
   assert.ok(fileDetector.isInstructionFile('/home/user/.claude/CLAUDE.md'));
 });
 
+test('检测 AGENTS.md', () => {
+  assert.ok(fileDetector.isInstructionFile('/home/user/project/AGENTS.md'));
+});
+
 test('检测 skills/ 目录下的文件', () => {
   assert.ok(fileDetector.isInstructionFile('/home/user/.claude/skills/my-skill/references/defs.md'));
 });

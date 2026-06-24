@@ -19,7 +19,7 @@
 | 问题 | 缺陷 | "问题"激活争议/论辩语义——模型偏离主题 |
 | 分析 | 总结 | "分析"缺乏边界——模型产出无限制的内容 |
 
-semantic-linter 在每次编辑指令文件时**自动捕获**这些陷阱。
+semantic-linter 通过项目级规则指针与 CLI 扫描帮助你在编写指令文件时捕获这些陷阱。
 
 ## 功能特性
 
@@ -29,7 +29,7 @@ semantic-linter 在每次编辑指令文件时**自动捕获**这些陷阱。
 - **代码块排除**：跳过 ```` ``` ```` 围栏代码块和 `` ` `` 行内代码，避免误报
 - **双语支持**：中文和英文各自采用语言特定的检测策略
 - **零依赖**：纯 Node.js 实现，无需 npm install
-- **非阻塞**：从不中断 Vibe Coding Tools 工作流——发现的问题以警告形式注入
+- **非阻塞**：从不中断 Vibe Coding Tools 工作流——通过轻量指针与 CLI 报告辅助修正
 
 ### 两种触发方式
 
@@ -80,6 +80,32 @@ claude plugin marketplace update summersec-semantic-linter
 claude plugin update semantic-linter@summersec-semantic-linter
 ```
 
+### Codex
+
+本仓库同时提供 Codex 插件清单：`.codex-plugin/plugin.json`，并附带本地 marketplace 入口：`.agents/plugins/marketplace.json`。
+
+本地开发安装：
+
+```bash
+codex plugin marketplace add /absolute/path/to/semantic-linter
+codex plugin add semantic-linter@summersec-semantic-linter
+```
+
+从 GitHub 安装：
+
+```bash
+codex plugin marketplace add SummerSec/semantic-linter
+codex plugin add semantic-linter@summersec-semantic-linter
+```
+
+Codex 当前使用 `AGENTS.md` 作为项目级指令文件。要把语义规则指针铺到当前项目：
+
+```bash
+node /absolute/path/to/semantic-linter/scripts/build-rules.js "$(pwd)/AGENTS.md"
+```
+
+这会生成/更新 `semantic-rules.md` 与 `AGENTS.md` 受管区指针；之后 Codex 读项目指令时会按需打开规则文件。
+
 ### 开发者安装（源码）
 
 如果你想直接基于源码使用，或者本地调试、跟进仓库最新改动，可以把仓库克隆到 Claude 的插件目录：
@@ -118,8 +144,8 @@ git pull
 
 装好插件后，第一次使用按以下三步即可：
 
-1. **初始化**：在你的项目里运行 `/stl-init`。它会检查插件、把语义规则铺到当前项目（生成 `semantic-rules.md` + `CLAUDE.md` 指针），并说明后续如何自动生效。
-2. **日常无感**：之后编写或修改 `/skills/`、`SKILL.md`、`CLAUDE.md` 等指令文件时，Hook 会自动提示宽边界词与窄边界替换词——无需手动操作。
+1. **初始化**：在你的项目里运行 `/stl-init`，或直接运行 `build-rules.js`。它会检查插件、把语义规则铺到当前项目（Codex 生成 `semantic-rules.md` + `AGENTS.md` 指针；Claude Code 生成 `semantic-rules.md` + `CLAUDE.md` 指针），并说明后续如何生效。
+2. **日常自查**：之后编写或修改 `/skills/`、`SKILL.md`、`AGENTS.md`、`CLAUDE.md` 等指令文件时，模型读到项目指针后按需打开规则文件；需要逐文件核查时运行 CLI。
 3. **按需维护**：词典更新后用 `/stl-rules` 重新生成本项目规则；要增删陷阱词用 `/stl-lexicon`。
 
 ### 快捷命令
@@ -127,7 +153,7 @@ git pull
 | 命令 | 作用 |
 |---|---|
 | `/stl-init` | 首次使用向导：检查安装 + 铺规则到当前项目 + 说明自动生效机制 |
-| `/stl-rules` | 在当前项目生成/更新 `semantic-rules.md` 与 `CLAUDE.md` 指针（词典更新后重跑） |
+| `/stl-rules` | 在当前项目生成/更新 `semantic-rules.md` 与 `AGENTS.md`/`CLAUDE.md` 指针（词典更新后重跑） |
 | `/stl-lexicon` | 维护陷阱词词典：增删改词汇对、调严重等级，并重新生成运行时数据 |
 
 > 命令是对 `rules-installer` / `lexicon-manager` skill 与 `build-rules` 脚本的薄封装，负责好记好触发；也可继续用自然语言触发对应 skill。
@@ -138,7 +164,7 @@ Linter 对匹配以下模式的文件生效：
 
 | 匹配规则 | 示例 |
 |---|---|
-| 文件名 | `skill.md`、`SKILL.md`、`claude.md`、`CLAUDE.md` |
+| 文件名 | `skill.md`、`SKILL.md`、`agents.md`、`AGENTS.md`、`claude.md`、`CLAUDE.md` |
 | 后缀 | `*.prompt.md`、`*_definitions.md`、`*_examples.md` |
 | 目录 | `/skills/`、`/agents/`、`/commands/`、`/rules/`、`/prompts/` |
 
@@ -177,23 +203,23 @@ npm test
 
 ## 约束规则注入（让模型按需自查）
 
-除了 Hook 在写入时被动报警，本插件还能把语义判定标准**生成为一份规则文件**，并在 CLAUDE.md 常驻一段**指针**——模型每会话只加载这段轻量指针，写指令文件时再**按需打开规则文件**主动收窄宽边界词。这是「模型主动识别」相对死词典匹配的增量，又避免规则全文每会话常驻消耗上下文。
+除了 CLI 逐文件扫描，本插件还能把语义判定标准**生成为一份规则文件**，并在项目级指令文件（Codex: `AGENTS.md`；Claude Code: `CLAUDE.md`）常驻一段**指针**——模型每会话只加载这段轻量指针，写指令文件时再**按需打开规则文件**主动收窄宽边界词。这是「模型主动识别」相对死词典匹配的增量，又避免规则全文每会话常驻消耗上下文。
 
-`scripts/build-rules.js` 从词典确定性生成**两份产物**（幂等可重复运行）：
+`scripts/build-rules.js` 从词典确定性生成规则文件与项目指令指针（幂等可重复运行）：
 
-- **`semantic-rules.md`**（与 CLAUDE.md 同目录）— 规则全文：四维判定标准 + 27 对「宽→窄」速查表 + 边界锚定策略 + 自查指令；
-- **CLAUDE.md 受管区**（`<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`）— 指针 + 场景短文本，指引模型何时去读规则文件。该段措辞刻意避开陷阱词，不会触发自身扫描误报。
+- **`semantic-rules.md`**（与目标指令文件同目录）— 规则全文：四维判定标准 + 27 对「宽→窄」速查表 + 边界锚定策略 + 自查指令；
+- **项目级指令文件受管区**（Codex: `AGENTS.md`；Claude Code: `CLAUDE.md`；marker 为 `<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`）— 指针 + 场景短文本，指引模型何时去读规则文件。该段措辞刻意避开陷阱词，不会触发自身扫描误报。
 
 **两种用法：**
 
 ```bash
-# 开发者（仓库源码内）：生成/更新插件自己的两份产物
+# 开发者（仓库源码内）：生成/更新插件自己的规则文件与 CLAUDE.md / AGENTS.md 指针
 npm run build-rules
-# 校验两份产物与词典一致（npm test 经 pretest 钩子自动执行）
+# 校验规则文件与两个项目指针均与词典一致（npm test 经 pretest 钩子自动执行）
 npm run build-rules:check
 ```
 
-**安装用户**：在会话中触发 `rules-installer` skill（如说「把语义约束规则注入到 CLAUDE.md」），它会引导在**你当前项目**生成 `semantic-rules.md` 并写入 CLAUDE.md 指针。
+**安装用户**：在会话中触发 `rules-installer` skill（如说「把语义约束规则注入到 AGENTS.md / CLAUDE.md」），它会引导在**你当前项目**生成 `semantic-rules.md` 并写入项目指令文件指针。
 
 ## CLI JSON 输出
 
@@ -287,6 +313,10 @@ npm test
 semantic-linter/
 ├── bin/scan.js                 # CLI 主动扫描入口
 ├── commands/                   # slash 命令：stl-init / stl-rules / stl-lexicon
+├── .codex-plugin/
+│   └── plugin.json             # Codex 插件清单（skills + 展示元数据）
+├── .agents/plugins/
+│   └── marketplace.json        # Codex 本地 marketplace 入口
 ├── hooks/
 │   ├── hooks.json              # Hook 注册配置（仅 SessionStart）
 │   └── session-start.js        # SessionStart：注入语义约束规则指针
@@ -301,14 +331,15 @@ semantic-linter/
 │   └── meta.js                 # 版本元数据
 ├── scripts/
 │   ├── build-lexicon.js        # 从 MD 生成 lexicon-data.js
-│   └── build-rules.js          # 从词典生成规则文件 + CLAUDE.md 指针
+│   └── build-rules.js          # 从词典生成规则文件 + 项目指令文件指针
 ├── references/
 │   └── semantic-trap-lexicon.md # 完整词典文档
-├── semantic-rules.md           # 生成物：语义约束规则全文（CLAUDE.md 指针指向它）
+├── semantic-rules.md           # 生成物：语义约束规则全文（项目指针指向它）
 ├── skills/                     # semantic-analyzer / lexicon-manager /
 │   │                           #   semantic-linter-shot / rules-installer
 ├── tests/                      # test-scanner.js + test-new-features.js
 ├── package.json
+├── AGENTS.md
 └── CLAUDE.md
 ```
 

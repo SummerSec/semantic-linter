@@ -287,8 +287,12 @@ console.log('\n--- Config / meta / build-lexicon ---');
 
 test('package.json 与 plugin.json 版本号一致', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  const plug = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8'));
-  assert.strictEqual(pkg.version, plug.version);
+  const claudePlug = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8'));
+  const codexPlug = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.codex-plugin', 'plugin.json'), 'utf8'));
+  const claudeMarket = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'marketplace.json'), 'utf8'));
+  assert.strictEqual(pkg.version, claudePlug.version);
+  assert.strictEqual(pkg.version, codexPlug.version);
+  assert.strictEqual(pkg.version, claudeMarket.plugins[0].version);
 });
 
 test('meta.getToolVersion 可读', () => {
@@ -328,7 +332,7 @@ test('build-lexicon --check 通过', () => {
   });
 });
 
-// ========== build-rules（双文件：CLAUDE.md 指针 + semantic-rules.md 规则）==========
+// ========== build-rules（目标指令文件指针 + semantic-rules.md 规则）==========
 console.log('\n--- build-rules ---');
 
 const ROOT_FOR_RULES = path.join(__dirname, '..');
@@ -365,6 +369,17 @@ test('build-rules 生成 CLAUDE.md 指针 + semantic-rules.md 规则文件', () 
   const rules = fs.readFileSync(rulesFile, 'utf8');
   assert.ok(rules.includes('程度性'));
   assert.ok(rules.includes('边界锚定三策略'));
+});
+
+test('build-rules 可生成 AGENTS.md 指针 + semantic-rules.md 规则文件', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-agents-'));
+  const agentsMd = path.join(dir, 'AGENTS.md');
+  runBuildRules([agentsMd], ROOT_FOR_RULES);
+  const pointer = fs.readFileSync(agentsMd, 'utf8');
+  assert.ok(pointer.includes(RULES_BEGIN) && pointer.includes(RULES_END));
+  assert.ok(pointer.includes('semantic-rules.md'));
+  assert.ok(fs.existsSync(path.join(dir, 'semantic-rules.md')));
+  runBuildRules(['--check', agentsMd], ROOT_FOR_RULES);
 });
 
 test('CLAUDE.md 指针受管区本身不含陷阱词（避免自我误报）', () => {
@@ -432,20 +447,50 @@ test('build-rules --check：CLAUDE.md 缺少受管区=非0', () => {
 });
 
 test('项目根 CLAUDE.md 与 semantic-rules.md 均与词典保持同步', () => {
-  // 仓库自身两份产物应已生成且与当前词典一致（防止提交时遗漏重新生成）
+  // 仓库自身产物应已生成且与当前词典一致（防止提交时遗漏重新生成）
   runBuildRules(['--check', path.join(ROOT_FOR_RULES, 'CLAUDE.md')], ROOT_FOR_RULES);
+});
+
+test('项目根 AGENTS.md 与 semantic-rules.md 均与词典保持同步', () => {
+  runBuildRules(['--check', path.join(ROOT_FOR_RULES, 'AGENTS.md')], ROOT_FOR_RULES);
 });
 
 // ========== Metadata Validation Tests ==========
 console.log('\n--- Metadata Validation ---');
 
-test('plugin.json is valid JSON with required fields', () => {
+test('Claude plugin.json is valid JSON with required fields', () => {
   const raw = fs.readFileSync(path.join(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf8');
   const json = JSON.parse(raw);
   assert.ok(json.name);
   assert.ok(json.version);
   assert.ok(json.description);
   assert.ok(Array.isArray(json.keywords));
+});
+
+test('Codex plugin.json is valid JSON with required fields', () => {
+  const raw = fs.readFileSync(path.join(__dirname, '..', '.codex-plugin', 'plugin.json'), 'utf8');
+  const json = JSON.parse(raw);
+  assert.strictEqual(json.name, 'semantic-linter');
+  assert.strictEqual(json.skills, './skills/');
+  assert.ok(json.interface);
+  assert.ok(json.interface.displayName);
+  assert.ok(Array.isArray(json.interface.defaultPrompt));
+  assert.ok(!Object.prototype.hasOwnProperty.call(json, 'hooks'));
+  assert.ok(!Object.prototype.hasOwnProperty.call(json, 'commands'));
+});
+
+test('Codex marketplace entry points at repo plugin root', () => {
+  const raw = fs.readFileSync(path.join(__dirname, '..', '.agents', 'plugins', 'marketplace.json'), 'utf8');
+  const json = JSON.parse(raw);
+  assert.strictEqual(json.name, 'summersec-semantic-linter');
+  assert.ok(Array.isArray(json.plugins));
+  const entry = json.plugins.find((p) => p.name === 'semantic-linter');
+  assert.ok(entry);
+  assert.strictEqual(entry.source.source, 'local');
+  assert.strictEqual(entry.source.path, '.');
+  assert.strictEqual(entry.policy.installation, 'AVAILABLE');
+  assert.strictEqual(entry.policy.authentication, 'ON_INSTALL');
+  assert.strictEqual(entry.category, 'Developer Tools');
 });
 
 test('rules-installer skill 存在且含 frontmatter', () => {
