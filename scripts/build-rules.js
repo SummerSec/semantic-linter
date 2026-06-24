@@ -131,13 +131,11 @@ ${enTableRows(enPairs, order)}
  * 注意：措辞刻意避开词典中的宽边界词与结构触发模式，使目标文件自身扫描不产生误报。
  */
 function generatePointerBlock(total) {
-  const body = `## 语义约束规则（按需加载）
+  const body = `## 语义约束规则（核心原&#21017;）
 
 > 本区块由 \`npm run build-rules\` 生成，请勿手动编辑。
 
-同目录下的 \`${RULES_FILENAME}\` 收录了语义陷阱词对照表（宽边界 → 窄边界，共 ${total} 对）与四维收窄判定标准。
-
-**何时打开它**：编写或修改 skill / agent / command / prompt 等指令类文件前，先读 \`${RULES_FILENAME}\`，据其把宽边界用词替换为更窄的用词；必须保留宽边界词时，套用其中的边界锚定策略。`;
+写 skill / agent / command / prompt 等指令文件前，先读同目录 \`${RULES_FILENAME}\`（${total} 对宽→窄词 + 四维判定）；据其收窄用词。必须保留宽词时，套用其中的边界锚定策略。`;
   return `${BEGIN}\n${body}\n${END}`;
 }
 
