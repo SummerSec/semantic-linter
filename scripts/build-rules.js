@@ -11,8 +11,10 @@
  * 数据同源：直接 require 词典模块（由 build-lexicon 从 MD 生成），不重复解析。
  *
  * 用法:
- *   node scripts/build-rules.js [targetMdPath]           写入规则文件 + 指针（默认 ./CLAUDE.md）
- *   node scripts/build-rules.js --check [targetMdPath]   仅校验两份产物与当前词典一致（不写盘）
+ *   node scripts/build-rules.js [targetMdPath...]           写入规则文件 + 指针（默认 ./CLAUDE.md）
+ *   node scripts/build-rules.js --check [targetMdPath...]   仅校验两份产物与当前词典一致（不写盘）
+ *   node scripts/build-rules.js --existing [dir]             写入 dir 下已存在的 CLAUDE.md / AGENTS.md
+ *   node scripts/build-rules.js --check --existing [dir]     校验 dir 下已存在的 CLAUDE.md / AGENTS.md
  */
 
 const fs = require('fs');
@@ -26,6 +28,7 @@ const END = '<!-- STL:RULES:END -->';
 
 // 规则文件名（与目标指令文件同目录）
 const RULES_FILENAME = 'semantic-rules.md';
+const PROJECT_INSTRUCTION_FILES = ['CLAUDE.md', 'AGENTS.md'];
 
 // 严重等级 → 中文标签（展示用）
 const SEV_LABEL = {
@@ -161,9 +164,24 @@ function injectIntoFile(targetPath, block) {
   return `${existing}${sep}${block}\n`;
 }
 
-function resolveTarget(argv) {
-  const positional = argv.filter((a) => a !== '--check');
-  return path.resolve(positional[0] || path.join(ROOT, 'CLAUDE.md'));
+function resolveTargets(argv) {
+  const existingOnly = argv.includes('--existing');
+  const positional = argv.filter((a) => a !== '--check' && a !== '--existing');
+
+  if (existingOnly) {
+    const baseDir = path.resolve(positional[0] || process.cwd());
+    const targets = PROJECT_INSTRUCTION_FILES
+      .map((name) => path.join(baseDir, name))
+      .filter((targetPath) => fs.existsSync(targetPath));
+    if (targets.length === 0) {
+      console.error(`No CLAUDE.md or AGENTS.md found in ${rel(baseDir)}.`);
+      process.exit(1);
+    }
+    return targets;
+  }
+
+  if (positional.length === 0) return [path.resolve(path.join(ROOT, 'CLAUDE.md'))];
+  return positional.map((targetPath) => path.resolve(targetPath));
 }
 
 function rel(p) {
@@ -173,8 +191,7 @@ function rel(p) {
 function main() {
   const argv = process.argv.slice(2);
   const check = argv.includes('--check');
-  const targetMdPath = resolveTarget(argv);
-  const rulesPath = path.join(path.dirname(targetMdPath), RULES_FILENAME);
+  const targetMdPaths = resolveTargets(argv);
 
   const { zhPairs, enPairs, order } = loadPairs();
   const total = zhPairs.length + enPairs.length;
@@ -182,39 +199,45 @@ function main() {
   const pointerBlock = generatePointerBlock(total);
 
   if (check) {
-    // ① 校验规则文件
-    if (!fs.existsSync(rulesPath)) {
-      console.error(`Rules file missing: ${rel(rulesPath)} 不存在。Run: npm run build-rules`);
-      process.exit(1);
+    for (const targetMdPath of targetMdPaths) {
+      const rulesPath = path.join(path.dirname(targetMdPath), RULES_FILENAME);
+      // ① 校验规则文件
+      if (!fs.existsSync(rulesPath)) {
+        console.error(`Rules file missing: ${rel(rulesPath)} 不存在。Run: npm run build-rules`);
+        process.exit(1);
+      }
+      if (fs.readFileSync(rulesPath, 'utf8') !== rulesContent) {
+        console.error(`${rel(rulesPath)} is out of sync with the lexicon. Run: npm run build-rules`);
+        process.exit(1);
+      }
+      // ② 校验目标指令文件指针受管区
+      if (!fs.existsSync(targetMdPath)) {
+        console.error(`Managed region missing: ${rel(targetMdPath)} 不存在。Run: npm run build-rules`);
+        process.exit(1);
+      }
+      const region = extractManagedRegion(fs.readFileSync(targetMdPath, 'utf8'));
+      if (region === null) {
+        console.error(`Managed region missing in ${rel(targetMdPath)}. Run: npm run build-rules`);
+        process.exit(1);
+      }
+      if (region !== pointerBlock) {
+        console.error(`Managed region in ${rel(targetMdPath)} is out of sync. Run: npm run build-rules`);
+        process.exit(1);
+      }
+      console.log(`OK: ${rel(rulesPath)} 与 ${rel(targetMdPath)} 受管区均与词典一致`);
     }
-    if (fs.readFileSync(rulesPath, 'utf8') !== rulesContent) {
-      console.error(`${rel(rulesPath)} is out of sync with the lexicon. Run: npm run build-rules`);
-      process.exit(1);
-    }
-    // ② 校验目标指令文件指针受管区
-    if (!fs.existsSync(targetMdPath)) {
-      console.error(`Managed region missing: ${rel(targetMdPath)} 不存在。Run: npm run build-rules`);
-      process.exit(1);
-    }
-    const region = extractManagedRegion(fs.readFileSync(targetMdPath, 'utf8'));
-    if (region === null) {
-      console.error(`Managed region missing in ${rel(targetMdPath)}. Run: npm run build-rules`);
-      process.exit(1);
-    }
-    if (region !== pointerBlock) {
-      console.error(`Managed region in ${rel(targetMdPath)} is out of sync. Run: npm run build-rules`);
-      process.exit(1);
-    }
-    console.log(`OK: ${rel(rulesPath)} 与 ${rel(targetMdPath)} 受管区均与词典一致`);
     process.exit(0);
   }
 
-  // 写规则文件
-  fs.writeFileSync(rulesPath, rulesContent, 'utf8');
-  // 写/更新目标指令文件指针受管区
-  const nextTargetMd = injectIntoFile(targetMdPath, pointerBlock);
-  fs.writeFileSync(targetMdPath, nextTargetMd, 'utf8');
-  console.log(`Wrote ${rel(rulesPath)} and managed pointer into ${rel(targetMdPath)}`);
+  for (const targetMdPath of targetMdPaths) {
+    const rulesPath = path.join(path.dirname(targetMdPath), RULES_FILENAME);
+    // 写规则文件
+    fs.writeFileSync(rulesPath, rulesContent, 'utf8');
+    // 写/更新目标指令文件指针受管区
+    const nextTargetMd = injectIntoFile(targetMdPath, pointerBlock);
+    fs.writeFileSync(targetMdPath, nextTargetMd, 'utf8');
+    console.log(`Wrote ${rel(rulesPath)} and managed pointer into ${rel(targetMdPath)}`);
+  }
 }
 
 main();

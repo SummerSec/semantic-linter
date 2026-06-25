@@ -382,6 +382,29 @@ test('build-rules 可生成 AGENTS.md 指针 + semantic-rules.md 规则文件', 
   runBuildRules(['--check', agentsMd], ROOT_FOR_RULES);
 });
 
+test('build-rules 支持一次写入 CLAUDE.md 与 AGENTS.md', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-both-'));
+  const claudeMd = path.join(dir, 'CLAUDE.md');
+  const agentsMd = path.join(dir, 'AGENTS.md');
+  runBuildRules([claudeMd, agentsMd], ROOT_FOR_RULES);
+  assert.ok(fs.readFileSync(claudeMd, 'utf8').includes(RULES_BEGIN));
+  assert.ok(fs.readFileSync(agentsMd, 'utf8').includes(RULES_BEGIN));
+  assert.ok(fs.existsSync(path.join(dir, 'semantic-rules.md')));
+  runBuildRules(['--check', claudeMd, agentsMd], ROOT_FOR_RULES);
+});
+
+test('build-rules --existing 只写入当前目录已存在的项目指令文件', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sl-existing-'));
+  const claudeMd = path.join(dir, 'CLAUDE.md');
+  const agentsMd = path.join(dir, 'AGENTS.md');
+  fs.writeFileSync(claudeMd, '# Claude\n');
+  fs.writeFileSync(agentsMd, '# Agents\n');
+  runBuildRules(['--existing', dir], ROOT_FOR_RULES);
+  assert.ok(fs.readFileSync(claudeMd, 'utf8').includes(RULES_BEGIN));
+  assert.ok(fs.readFileSync(agentsMd, 'utf8').includes(RULES_BEGIN));
+  runBuildRules(['--check', '--existing', dir], ROOT_FOR_RULES);
+});
+
 test('CLAUDE.md 指针受管区本身不含陷阱词（避免自我误报）', () => {
   const { claudeMd } = genInTmp();
   const text = fs.readFileSync(claudeMd, 'utf8');
