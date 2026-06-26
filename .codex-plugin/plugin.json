@@ -1,6 +1,6 @@
 {
   "name": "semantic-linter",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Detects semantic trap words in LLM instruction files and helps narrow wide-boundary wording.",
   "author": {
     "name": "semantic-linter contributors",
