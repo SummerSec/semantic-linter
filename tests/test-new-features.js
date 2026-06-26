@@ -505,7 +505,8 @@ test('Codex plugin.json is valid JSON with required fields', () => {
 test('Codex marketplace entry points at repo plugin root', () => {
   const raw = fs.readFileSync(path.join(__dirname, '..', '.agents', 'plugins', 'marketplace.json'), 'utf8');
   const json = JSON.parse(raw);
-  assert.strictEqual(json.name, 'summersec-semantic-linter');
+  assert.strictEqual(json.name, 'semantic-linter');
+  assert.strictEqual(json.interface.displayName, 'Semantic-Linter');
   assert.ok(Array.isArray(json.plugins));
   const entry = json.plugins.find((p) => p.name === 'semantic-linter');
   assert.ok(entry);

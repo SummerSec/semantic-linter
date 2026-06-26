@@ -1,6 +1,6 @@
 [English Version](./README.en.md)
 
-# semantic-linter
+# Semantic-Linter
 
 一个 Vibe Coding Tools Hook 插件，用于检测 Skill / Prompt / Agent 指令文件中的**语义陷阱词汇**——语义边界过宽、可能导致大模型产生幻觉的词汇。
 
@@ -19,7 +19,7 @@
 | 问题 | 缺陷 | "问题"激活争议/论辩语义——模型偏离主题 |
 | 分析 | 总结 | "分析"缺乏边界——模型产出无限制的内容 |
 
-semantic-linter 通过项目级规则指针与 CLI 扫描帮助你在编写指令文件时捕获这些陷阱。
+Semantic-Linter 通过项目级规则指针与 CLI 扫描帮助你在编写指令文件时捕获这些陷阱。
 
 ## 功能特性
 
@@ -88,14 +88,14 @@ claude plugin update semantic-linter@summersec-semantic-linter
 
 ```bash
 codex plugin marketplace add /absolute/path/to/semantic-linter
-codex plugin add semantic-linter@summersec-semantic-linter
+codex plugin add semantic-linter@semantic-linter
 ```
 
 从 GitHub 安装：
 
 ```bash
 codex plugin marketplace add SummerSec/semantic-linter
-codex plugin add semantic-linter@summersec-semantic-linter
+codex plugin add semantic-linter@semantic-linter
 ```
 
 Codex 当前使用 `AGENTS.md` 作为项目级指令文件。要把语义规则指针铺到当前项目：

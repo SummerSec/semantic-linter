@@ -1,7 +1,7 @@
 {
-  "name": "summersec-semantic-linter",
+  "name": "semantic-linter",
   "interface": {
-    "displayName": "SummerSec semantic-linter"
+    "displayName": "Semantic-Linter"
   },
   "plugins": [
     {

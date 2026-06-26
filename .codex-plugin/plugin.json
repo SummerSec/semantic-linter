@@ -22,9 +22,9 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Semantic Linter",
+    "displayName": "Semantic-Linter",
     "shortDescription": "Find wide-boundary wording in instructions",
-    "longDescription": "Use Semantic Linter to check Skill, prompt, agent, and project instruction files for wide-boundary wording, consult the bundled semantic trap lexicon, and generate a lightweight rules pointer for project-level guidance.",
+    "longDescription": "Use Semantic-Linter to check Skill, prompt, agent, and project instruction files for wide-boundary wording, consult the bundled semantic trap lexicon, and generate a lightweight rules pointer for project-level guidance.",
     "developerName": "semantic-linter contributors",
     "category": "Developer Tools",
     "capabilities": [
@@ -35,7 +35,7 @@
     "websiteURL": "https://github.com/SummerSec/semantic-linter",
     "defaultPrompt": [
       "Check this instruction file for semantic trap wording.",
-      "Install semantic-linter rules into AGENTS.md.",
+      "Install Semantic-Linter rules into AGENTS.md.",
       "Help me maintain the semantic trap lexicon."
     ],
     "brandColor": "#0F766E",

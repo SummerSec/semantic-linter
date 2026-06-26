@@ -1,5 +1,5 @@
 ---
-description: 维护 semantic-linter 陷阱词词典——增删改词汇对、调严重等级，并重新生成运行时数据
+description: 维护 Semantic-Linter 陷阱词词典——增删改词汇对、调严重等级，并重新生成运行时数据
 ---
 
 # 维护语义陷阱词词典

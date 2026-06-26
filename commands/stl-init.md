@@ -1,8 +1,8 @@
 ---
-description: semantic-linter 首次使用向导——检查安装、把语义规则铺到当前项目、说明后续如何生效
+description: Semantic-Linter 首次使用向导——检查安装、把语义规则铺到当前项目、说明后续如何生效
 ---
 
-# semantic-linter 首次使用向导
+# Semantic-Linter 首次使用向导
 
 带用户完成首次配置，分三步执行，每步向用户报告结果。
 

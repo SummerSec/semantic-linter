@@ -1,6 +1,6 @@
 ---
 name: lexicon-manager
-description: 维护 semantic-linter 语义陷阱词典——在 Markdown 源表中增删改词汇对并生成运行时数据。当用户要添加/修改/删除陷阱词、调整严重等级、批量导入或查看词典时使用。
+description: 维护 Semantic-Linter 语义陷阱词典——在 Markdown 源表中增删改词汇对并生成运行时数据。当用户要添加/修改/删除陷阱词、调整严重等级、批量导入或查看词典时使用。
 ---
 
 # 语义陷阱词典管理器

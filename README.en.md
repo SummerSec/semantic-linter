@@ -1,6 +1,6 @@
 [简体中文](./README.md)
 
-# semantic-linter
+# Semantic-Linter
 
 A Vibe Coding Tools plugin that detects **semantic trap words** in Skill / Prompt / Agent instruction files — words with overly broad semantic boundaries that can cause LLM hallucinations.
 
@@ -19,7 +19,7 @@ In LLM instruction files, some word pairs appear synonymous to humans but activa
 | issue | defect | "issue" activates debate/controversy meanings — model drifts off-topic |
 | analyze | summarize | "analyze" has no boundary — model produces unbounded output |
 
-semantic-linter helps catch these traps while you write instruction files through project-level rule pointers and CLI scans.
+Semantic-Linter helps catch these traps while you write instruction files through project-level rule pointers and CLI scans.
 
 ## Features
 
@@ -88,14 +88,14 @@ For local development install:
 
 ```bash
 codex plugin marketplace add /absolute/path/to/semantic-linter
-codex plugin add semantic-linter@summersec-semantic-linter
+codex plugin add semantic-linter@semantic-linter
 ```
 
 For GitHub install:
 
 ```bash
 codex plugin marketplace add SummerSec/semantic-linter
-codex plugin add semantic-linter@summersec-semantic-linter
+codex plugin add semantic-linter@semantic-linter
 ```
 
 Codex uses `AGENTS.md` as the project-level instruction file. To install the semantic rule pointer into the current project:

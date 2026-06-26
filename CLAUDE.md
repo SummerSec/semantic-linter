@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-**semantic-linter** 是一个面向 Claude Code 与 Codex 的语义约束插件/CLI，用于检测 Skill/Prompt/Agent 指令文件中的语义陷阱词汇。它可以识别语义边界过宽的词汇，这些词汇可能导致大模型产生幻觉（例如使用"风险"而非更精确的"漏洞"）。
+**Semantic-Linter** 是一个面向 Claude Code 与 Codex 的语义约束插件/CLI，用于检测 Skill/Prompt/Agent 指令文件中的语义陷阱词汇。它可以识别语义边界过宽的词汇，这些词汇可能导致大模型产生幻觉（例如使用"风险"而非更精确的"漏洞"）。
 
 ## 常用命令
 

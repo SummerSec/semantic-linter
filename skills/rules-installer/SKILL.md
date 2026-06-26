@@ -1,6 +1,6 @@
 ---
 name: rules-installer
-description: 把 semantic-linter 的语义约束规则注入到当前项目的 AGENTS.md 或 CLAUDE.md，使模型读项目指令时按需自查陷阱词。当用户要"安装语义规则到 AGENTS.md""安装语义规则到 CLAUDE.md""注入约束规则""让模型自查陷阱词""install semantic rules""把陷阱词标准写进项目"时使用。
+description: 把 Semantic-Linter 的语义约束规则注入到当前项目的 AGENTS.md 或 CLAUDE.md，使模型读项目指令时按需自查陷阱词。当用户要"安装语义规则到 AGENTS.md""安装语义规则到 CLAUDE.md""注入约束规则""让模型自查陷阱词""install semantic rules""把陷阱词标准写进项目"时使用。
 ---
 
 # 语义约束规则安装器
