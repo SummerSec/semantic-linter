@@ -2,352 +2,148 @@
 
 # Semantic-Linter
 
-一个 Vibe Coding Tools Hook 插件，用于检测 Skill / Prompt / Agent 指令文件中的**语义陷阱词汇**——语义边界过宽、可能导致大模型产生幻觉的词汇。
+Semantic-Linter is a plugin and CLI for narrowing wide-boundary wording in LLM instruction files. It targets `SKILL.md`, `AGENTS.md`, `CLAUDE.md`, prompt docs, command docs, and similar instruction assets where vague wording can cause hallucination or scope creep.
 
-> 在同一个 Skill 中，仅将"漏洞"替换为"风险"，即使约束条件和逻辑完全相同，准确率也会**下降 27%**。
+## Current Architecture
 
-本项目基于文章[《别让大模型"想太多"：SKILL开发中的语义陷阱与抗幻觉设计》](https://sumsec.me/2026/%E5%88%AB%E8%AE%A9%E5%A4%A7%E6%A8%A1%E5%9E%8B_%E6%83%B3%E5%A4%AA%E5%A4%9A_%EF%BC%9ASKILL%E5%BC%80%E5%8F%91%E4%B8%AD%E7%9A%84%E8%AF%AD%E4%B9%89%E9%99%B7%E9%98%B1%E4%B8%8E%E6%8A%97%E5%B9%BB%E8%A7%89%E8%AE%BE%E8%AE%A1.html)的理论框架演化而来，将文中提出的语义陷阱检测方法实现为自动化工具。
+Semantic-Linter now uses a layered design instead of a pointer-only design:
 
-## 问题背景
+- `SessionStart` injects a compact `STL:` pointer to the active `semantic-rules.md`.
+- `SubagentStart` propagates the same pointer into subagents.
+- `UserPromptSubmit` can warn on vague wording before the prompt reaches the model.
+- `PreToolUse` warns before `Write` and `Edit` operations touch instruction files.
+- `PostToolUse` re-checks the resulting content and records escalation state.
+- `bin/scan.js` remains the explicit CLI scanner for single files, directories, or the current workspace.
 
-在 LLM 指令文件中，有些词汇对在人类看来近乎同义，但在模型语义空间中激活的区域截然不同：
+The default operating mode is `guarded`:
 
-| 宽边界词（高风险） | 窄边界词（精确） | 风险原因 |
-|---|---|---|
-| 风险 | 漏洞 | "风险"会激活金融、健康、法律等联想——模型注意力发散 |
-| 审查 | 检查 | "审查"暗示主观评价——模型幻觉出个人观点 |
-| 问题 | 缺陷 | "问题"激活争议/论辩语义——模型偏离主题 |
-| 分析 | 总结 | "分析"缺乏边界——模型产出无限制的内容 |
+- `off`: disable all semantic-linter behavior.
+- `pointer`: keep only the lightweight rules pointer.
+- `guarded`: pointer + write-time checks.
+- `strict`: pointer + write-time checks + prompt scanning.
 
-Semantic-Linter 通过项目级规则指针与 CLI 扫描帮助你在编写指令文件时捕获这些陷阱。
+## Rule Source Strategy
 
-## 功能特性
+Rules are resolved with `project-first` behavior by default:
 
-- **27 组语义陷阱词对**：17 组中文 + 10 组英文，每组附带严重等级和替换建议
-- **上下文感知严重等级**：同一词汇在不同角色中风险不同（约束关键词 > 任务目标 > 辅助描述）
-- **4 种结构性风险检测**：开放式动词、抽象化目标、情态动词降级、缺少否定清单
-- **代码块排除**：跳过 ```` ``` ```` 围栏代码块和 `` ` `` 行内代码，避免误报
-- **双语支持**：中文和英文各自采用语言特定的检测策略
-- **零依赖**：纯 Node.js 实现，无需 npm install
-- **非阻塞**：从不中断 Vibe Coding Tools 工作流——通过轻量指针与 CLI 报告辅助修正
+1. Look upward from the edited file or current workspace for the nearest `semantic-rules.md`.
+2. Fall back to the plugin-bundled `semantic-rules.md` if no project file exists.
 
-### 两种触发方式
+You can force plugin-only resolution with `.semantic-linter.json`.
 
-| 触发点 | 时机 | 作用 |
-|---|---|---|
-| SessionStart Hook | 会话启动 / 恢复 / 压缩 | 注入语义约束规则**指针**：给出插件自带 `semantic-rules.md` 的路径与「何时去读」，引导模型写指令文件时按需自查、收窄宽边界词 |
-| CLI（`bin/scan.js`） | 手动 | 主动扫描单文件 / 目录 / 当前工作区，支持 JSON 输出 |
-
-> 设计取向：用**会话启动注入指针 + 模型按需读规则**取代写入时的逐次扫描报警——规则全文不常驻上下文，只在编写指令文件时按需加载。需要逐文件核查时用 CLI 主动扫描。
-
-## 安装
-
-### Vercel Skills CLI
-
-Vercel Skills CLI 适合用来安装可复用的通用 Skill，不绑定某个特定 AI 工具。如果你只想先体验本仓库提供的单文件参考 Skill，可以使用下面这条命令：
-
-```bash
-npx skills add SummerSec/semantic-linter --skill semantic-linter-shot
-```
-
-如果当前会话没有立刻识别到新 Skill，重启你的 AI 工具即可。
+## Installation
 
 ### Claude Code
 
-如果你希望完整安装本仓库提供的插件能力，可以在 Claude Code 中先把这个仓库添加为插件市场：
-
 ```bash
 claude plugin marketplace add SummerSec/semantic-linter
-```
-
-然后安装插件本体：
-
-```bash
 claude plugin install semantic-linter@summersec-semantic-linter
-```
-
-如果安装完成后当前会话没有立刻加载插件，可以执行：
-
-```bash
 /reload-plugins
 ```
 
-更新时建议先刷新 marketplace 缓存，再更新插件本体：
-
-```bash
-# 先刷新 marketplace 缓存，再更新插件
-claude plugin marketplace update summersec-semantic-linter
-claude plugin update semantic-linter@summersec-semantic-linter
-```
-
 ### Codex
-
-本仓库同时提供 Codex 插件清单：`.codex-plugin/plugin.json`，并附带本地 marketplace 入口：`.agents/plugins/marketplace.json`。
-
-本地开发安装：
-
-```bash
-codex plugin marketplace add /absolute/path/to/semantic-linter
-codex plugin add semantic-linter@semantic-linter
-```
-
-从 GitHub 安装：
 
 ```bash
 codex plugin marketplace add SummerSec/semantic-linter
 codex plugin add semantic-linter@semantic-linter
 ```
 
-Codex 当前使用 `AGENTS.md` 作为项目级指令文件。要把语义规则指针铺到当前项目：
+Codex does not consume Claude hook manifests. Its project-level integration is the managed rules block in `AGENTS.md`.
+
+## Project Bootstrap
+
+To install project-local semantic rules into the current repo:
 
 ```bash
-node /absolute/path/to/semantic-linter/scripts/build-rules.js "$(pwd)/AGENTS.md"
+node /absolute/path/to/semantic-linter/scripts/build-rules.js --existing "$(pwd)"
 ```
 
-这会生成/更新 `semantic-rules.md` 与 `AGENTS.md` 受管区指针；之后 Codex 读项目指令时会按需打开规则文件。
+This writes:
 
-### 开发者安装（源码）
+- `semantic-rules.md`
+- a managed rules block in existing `AGENTS.md` and/or `CLAUDE.md`
 
-如果你想直接基于源码使用，或者本地调试、跟进仓库最新改动，可以把仓库克隆到 Claude 的插件目录：
+If neither file exists, the script creates the host-appropriate default target:
+
+- Codex or auto host: `AGENTS.md`
+- Claude host: `CLAUDE.md`
+
+Useful commands:
 
 ```bash
-git clone https://github.com/SummerSec/semantic-linter.git ~/.claude/plugins/semantic-linter
+npm run build-rules
+npm run build-rules:check
+npm run build-lexicon
+npm run build-lexicon:check
+npm run scan -- <file>
+npm test
 ```
 
-然后手动登记到 `~/.claude/plugins/installed_plugins.json`：
+## Configuration
+
+Optional repo config lives in `.semantic-linter.json`.
+
+Supported fields:
 
 ```json
 {
-  "version": 2,
-  "plugins": {
-    "semantic-linter@summersec-semantic-linter": [
-      {
-        "scope": "user",
-        "installPath": "/Users/<you>/.claude/plugins/semantic-linter",
-        "version": "1.1.0"
-      }
-    ]
-  }
+  "ignoreTrapIds": ["T01"],
+  "ignorePathSubstrings": ["fixtures/generated/"],
+  "ignoreStructuralTypes": ["open_ended_verb"],
+  "defaultMode": "guarded",
+  "ruleSource": "project-first",
+  "enablePromptScan": false,
+  "maxFindingsPerHook": 3
 }
 ```
 
-Windows 下请把 `installPath` 改成 `C:/Users/<you>/.claude/plugins/semantic-linter`。
+Notes:
 
-配置完成后，重启 Claude Code，或执行 `/reload-plugins`。如果你使用的是源码安装，后续更新方式如下：
+- `defaultMode` accepts `off`, `pointer`, `guarded`, `strict`.
+- `ruleSource` accepts `project-first` and `plugin-only`.
+- `enablePromptScan` enables `UserPromptSubmit` in `guarded` mode.
+- `strict` always enables prompt scanning.
 
-```bash
-cd ~/.claude/plugins/semantic-linter
-git pull
-```
+## Detection Scope
 
-## 快速开始（首次使用）
+Semantic-Linter scans instruction-like files matched by path conventions:
 
-装好插件后，第一次使用按以下三步即可：
+- file names: `SKILL.md`, `AGENTS.md`, `CLAUDE.md`
+- suffixes: `*.prompt.md`, `*_definitions.md`, `*_examples.md`
+- directories: `skills/`, `agents/`, `commands/`, `rules/`, `prompts/`
 
-1. **初始化**：在你的项目里运行 `/stl-init`，或直接运行 `build-rules.js`。它会检查插件、把语义规则铺到当前项目（Codex 生成 `semantic-rules.md` + `AGENTS.md` 指针；Claude Code 生成 `semantic-rules.md` + `CLAUDE.md` 指针），并说明后续如何生效。
-2. **日常自查**：之后编写或修改 `/skills/`、`SKILL.md`、`AGENTS.md`、`CLAUDE.md` 等指令文件时，模型读到项目指针后按需打开规则文件；需要逐文件核查时运行 CLI。
-3. **按需维护**：词典更新后用 `/stl-rules` 重新生成本项目规则；要增删陷阱词用 `/stl-lexicon`。
+## Development Notes
 
-### 快捷命令
+Key runtime files:
 
-| 命令 | 作用 |
-|---|---|
-| `/stl-init` | 首次使用向导：检查安装 + 铺规则到当前项目 + 说明自动生效机制 |
-| `/stl-rules` | 在当前项目生成/更新 `semantic-rules.md` 与 `AGENTS.md`/`CLAUDE.md` 指针（词典更新后重跑） |
-| `/stl-lexicon` | 维护陷阱词词典：增删改词汇对、调严重等级，并重新生成运行时数据 |
+- `hooks/session-start.js`
+- `hooks/subagent-start.js`
+- `hooks/user-prompt-submit.js`
+- `hooks/pre-tool-use.js`
+- `hooks/post-tool-use.js`
+- `hooks/config.js`
+- `hooks/runtime.js`
+- `hooks/rules-resolver.js`
 
-> 命令是对 `rules-installer` / `lexicon-manager` skill 与 `build-rules` 脚本的薄封装，负责好记好触发；也可继续用自然语言触发对应 skill。
+Core library files:
 
-## 扫描范围
+- `lib/content-scanner.js`
+- `lib/structural-analyzer.js`
+- `lib/report-formatter.js`
+- `lib/state-manager.js`
+- `lib/config-loader.js`
 
-Linter 对匹配以下模式的文件生效：
-
-| 匹配规则 | 示例 |
-|---|---|
-| 文件名 | `skill.md`、`SKILL.md`、`agents.md`、`AGENTS.md`、`claude.md`、`CLAUDE.md` |
-| 后缀 | `*.prompt.md`、`*_definitions.md`、`*_examples.md` |
-| 目录 | `/skills/`、`/agents/`、`/commands/`、`/rules/`、`/prompts/` |
-
-其他文件将被静默跳过。
-
-## 项目配置（可选）
-
-在仓库或父目录中放置 `.semantic-linter.json`，从**被扫描文件所在目录向上**查找最近一份配置：
-
-| 字段 | 说明 |
-|------|------|
-| `ignoreTrapIds` | 字符串数组，如 `["T01"]`，不再报告对应陷阱 ID |
-| `ignorePathSubstrings` | 路径子串（正斜杠规范化后匹配），命中则**整文件跳过**扫描 |
-| `ignoreStructuralTypes` | 如 `["open_ended_verb"]`，关闭指定结构规则 |
-
-CLI 扫描（`bin/scan.js`）使用 `.semantic-linter.json`，从被扫描文件所在目录向上查找最近一份配置。
-
-## 状态与隐私
-
-CLI 扫描（`bin/scan.js`）会在用户主目录下持久化统计（可用环境变量覆盖目录）：
-
-- 默认路径：`$HOME/.semantic-linter/`（Windows：`%USERPROFILE%\.semantic-linter\`）
-- 覆盖方式：设置环境变量 `SEMANTIC_LINTER_STATE_DIR` 指向自定义目录
-- 内容：`stats.json`（累计次数）、`session.json`（会话内状态），可能包含**曾扫描过的文件路径**
-
-## 词典维护与生成
-
-中文/英文陷阱表以 `references/semantic-trap-lexicon.md` 为权威来源。修改表格后请执行：
-
-```bash
-npm run build-lexicon
-npm test
-```
-
-校验已提交 `lexicon-data.js` 与 Markdown 一致（不写盘）：`npm run build-lexicon:check`
-
-## 约束规则注入（让模型按需自查）
-
-除了 CLI 逐文件扫描，本插件还能把语义判定标准**生成为一份规则文件**，并在项目级指令文件（Codex: `AGENTS.md`；Claude Code: `CLAUDE.md`）常驻一段**指针**——模型每会话只加载这段轻量指针，写指令文件时再**按需打开规则文件**主动收窄宽边界词。这是「模型主动识别」相对死词典匹配的增量，又避免规则全文每会话常驻消耗上下文。
-
-`scripts/build-rules.js` 从词典确定性生成规则文件与项目指令指针（幂等可重复运行）：
-
-- **`semantic-rules.md`**（与目标指令文件同目录）— 规则全文：四维判定标准 + 27 对「宽→窄」速查表 + 边界锚定策略 + 自查指令；
-- **项目级指令文件受管区**（Codex: `AGENTS.md`；Claude Code: `CLAUDE.md`；marker 为 `<!-- STL:RULES:BEGIN -->` … `<!-- STL:RULES:END -->`）— 指针 + 场景短文本，指引模型何时去读规则文件。该段措辞刻意避开陷阱词，不会触发自身扫描误报。
-
-**两种用法：**
-
-```bash
-# 开发者（仓库源码内）：生成/更新插件自己的规则文件与 CLAUDE.md / AGENTS.md 指针
-npm run build-rules
-# 校验规则文件与两个项目指针均与词典一致（npm test 经 pretest 钩子自动执行）
-npm run build-rules:check
-```
-
-**安装用户**：在会话中触发 `rules-installer` skill（如说「把语义约束规则注入到 AGENTS.md / CLAUDE.md」），它会引导在**你当前项目**生成 `semantic-rules.md` 并写入项目指令文件指针。
-
-## CLI JSON 输出
-
-`--json` 结果包含 `schemaVersion`（输出结构版本）、`version`（与根目录 `package.json` 一致）、每条文件的 `skipped`（是否被 `ignorePathSubstrings` 跳过），以及 `summary.filesSkipped`。
-
-## 检测流水线
-
-```
-文件检测 ──→ 内容扫描 ──→ 结构分析 ──→ 报告生成
-(路径匹配)   (词典匹配)   (模式检测)   (Markdown)
-```
-
-### 阶段 1 — 文件检测
-
-根据已知的指令文件模式检查文件路径，仅处理 `.md` 文件。
-
-### 阶段 2 — 内容扫描
-
-- 去除代码块，防止示例代码产生误报
-- 对照 27 组陷阱词对进行匹配（基于 Map 的 O(1) 查找）
-- 对每个匹配项进行上下文角色分类：
-  - **constraint_keyword（约束关键词）** — 最高风险（如"只关注风险""不得使用风险"）
-  - **task_target（任务目标）** — 中等风险（如"请分析风险"）
-  - **auxiliary（辅助描述）** — 较低风险（如"不要讨论风险"——单独「不」不作为约束标记，避免误判）
-- 去重：每个词汇在单个文件中仅报告一次
-
-### 阶段 3 — 结构分析
-
-检测四种结构性风险模式：
-
-| 风险类型 | 示例（触发告警） | 示例（通过） |
-|---|---|---|
-| 开放式动词 | "分析代码" | "分析代码中的以下方面" |
-| 抽象化目标 | "评估安全性" | "检测漏洞" |
-| 情态动词降级 | 约束中使用"应该" | 约束中使用"必须" |
-| 缺少否定清单 | 高严重级别词汇，无排除说明 | 词汇 + "不包括..." |
-
-### 阶段 4 — 报告生成
-
-生成结构化 Markdown 报告，包含：
-- 整体风险等级
-- 陷阱词汇表（词汇、ID、严重等级、上下文角色、替换建议、行号）
-- 结构性风险（类型、上下文、建议）
-- 行动建议
-
-## 严重等级
-
-```
-critical > high > medium-high > medium > low
-```
-
-严重等级根据上下文角色进行调整：
-- 约束关键词：基础严重等级（不变）
-- 任务目标：基础严重等级（不变）
-- 辅助描述：降低 1 个等级
-
-## 输出示例
-
-```markdown
-## 语义陷阱检测报告
-
-**文件**: skills/code-review/skill.md
-**发现**: 2 个陷阱词汇, 1 个结构性风险
-**整体风险**: HIGH
-
-### 陷阱词汇
-
-| # | 词汇 | ID  | 严重等级 | 上下文角色      | 替换建议 | 行号 |
-|---|------|-----|---------|---------------|---------|------|
-| 1 | 风险 | T01 | critical | constraint_keyword | 漏洞 | 12 |
-| 2 | 审查 | T02 | high    | task_target    | 检查   | 5  |
-
-### 结构性风险
-
-| 类型 | 范围 | 上下文 | 建议 |
-|------|-----|--------|-----|
-| 开放式动词 | 第 8 行 | "分析代码" | 添加范围限定词 |
-```
-
-## 运行测试
+## Testing
 
 ```bash
 npm test
 ```
 
-使用 Node.js 内置 `assert` 模块（零测试框架依赖），覆盖检测器、扫描、结构分析、报告、状态升级、Hook 与生成器。`npm test` 经 `pretest` 钩子自动先跑 `build-lexicon:check` 与 `build-rules:check`，确保生成物不过时。
+`npm test` runs:
 
-## 项目结构
+- `build-lexicon:check`
+- `build-rules:check`
+- `tests/test-scanner.js`
+- `tests/test-new-features.js`
 
-```
-semantic-linter/
-├── bin/scan.js                 # CLI 主动扫描入口
-├── commands/                   # slash 命令：stl-init / stl-rules / stl-lexicon
-├── .codex-plugin/
-│   └── plugin.json             # Codex 插件清单（skills + 展示元数据）
-├── .agents/plugins/
-│   └── marketplace.json        # Codex 本地 marketplace 入口
-├── hooks/
-│   ├── hooks.json              # Hook 注册配置（仅 SessionStart）
-│   └── session-start.js        # SessionStart：注入语义约束规则指针
-├── lib/
-│   ├── file-detector.js        # 阶段 1：路径模式匹配
-│   ├── content-scanner.js      # 阶段 2：词典匹配 + 上下文分析
-│   ├── lexicon-data.js         # 陷阱词数据库（27 组，由 build-lexicon 生成）
-│   ├── structural-analyzer.js  # 阶段 3：结构性风险检测
-│   ├── report-formatter.js     # 阶段 4：报告生成
-│   ├── state-manager.js        # 状态持久化 + 升级系统
-│   ├── config-loader.js        # .semantic-linter.json 加载
-│   └── meta.js                 # 版本元数据
-├── scripts/
-│   ├── build-lexicon.js        # 从 MD 生成 lexicon-data.js
-│   └── build-rules.js          # 从词典生成规则文件 + 项目指令文件指针
-├── references/
-│   └── semantic-trap-lexicon.md # 完整词典文档
-├── semantic-rules.md           # 生成物：语义约束规则全文（项目指针指向它）
-├── skills/                     # semantic-analyzer / lexicon-manager /
-│   │                           #   semantic-linter-shot / rules-installer
-├── tests/                      # test-scanner.js + test-new-features.js
-├── package.json
-├── AGENTS.md
-└── CLAUDE.md
-```
-
-## 设计决策
-
-1. **O(1) 词典查找** — 基于 Map 实现，非线性搜索
-2. **上下文感知严重等级** — 同一词汇在不同句子角色中风险不同
-3. **代码块去除** — 文档中的示例代码不会产生误报
-4. **去重机制** — 每个陷阱词在每个文件中仅报告一次（使用 `pairId:word` 作为键）
-5. **优雅容错** — Hook 始终返回 `continue: true`，从不阻塞 Claude
-6. **独立的语言路径** — 中文使用子串匹配，英文使用单词边界正则
+The test suite covers scanner behavior, generator idempotence, manifest alignment, and stdin-driven hook entrypoints.

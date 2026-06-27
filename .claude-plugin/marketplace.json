@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "semantic-linter",
-      "version": "1.3.3",
+      "version": "1.3.4",
       "description": "Semantic-Linter detects semantic trap words in LLM instruction files (Skill/Prompt/Agent). Identifies wide-boundary vocabulary that may cause hallucination or scope creep.",
       "author": {
         "name": "semantic-linter contributors"
