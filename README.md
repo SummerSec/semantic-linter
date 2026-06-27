@@ -2,36 +2,36 @@
 
 # Semantic-Linter
 
-Semantic-Linter is a plugin and CLI for narrowing wide-boundary wording in LLM instruction files. It targets `SKILL.md`, `AGENTS.md`, `CLAUDE.md`, prompt docs, command docs, and similar instruction assets where vague wording can cause hallucination or scope creep.
+Semantic-Linter 是一个面向 LLM 指令文件的插件与 CLI，用来收窄语义边界过宽的表达。它主要用于 `SKILL.md`、`AGENTS.md`、`CLAUDE.md`、prompt 文档、command 文档等指令资产，帮助减少因为措辞过宽带来的幻觉和范围漂移。
 
-## Current Architecture
+## 当前架构
 
-Semantic-Linter now uses a layered design instead of a pointer-only design:
+Semantic-Linter 现在使用分层设计，不再是旧的 pointer-only 方案：
 
-- `SessionStart` injects a compact `STL:` pointer to the active `semantic-rules.md`.
-- `SubagentStart` propagates the same pointer into subagents.
-- `UserPromptSubmit` can warn on vague wording before the prompt reaches the model.
-- `PreToolUse` warns before `Write` and `Edit` operations touch instruction files.
-- `PostToolUse` re-checks the resulting content and records escalation state.
-- `bin/scan.js` remains the explicit CLI scanner for single files, directories, or the current workspace.
+- `SessionStart` 注入一条紧凑的 `STL:` 规则指针，指向当前生效的 `semantic-rules.md`
+- `SubagentStart` 把同样的规则指针传播给子代理
+- `UserPromptSubmit` 可以在提示词进入模型前提醒宽边界表达
+- `PreToolUse` 会在 `Write` 和 `Edit` 修改指令文件前给出预警
+- `PostToolUse` 会在写入后再次检查结果，并记录升级状态
+- `bin/scan.js` 仍然保留为显式 CLI 扫描入口，可扫描单文件、目录或当前工作区
 
-The default operating mode is `guarded`:
+默认运行模式是 `guarded`：
 
-- `off`: disable all semantic-linter behavior.
-- `pointer`: keep only the lightweight rules pointer.
-- `guarded`: pointer + write-time checks.
-- `strict`: pointer + write-time checks + prompt scanning.
+- `off`：关闭 semantic-linter
+- `pointer`：只保留轻量规则指针
+- `guarded`：规则指针 + 写入期检查
+- `strict`：规则指针 + 写入期检查 + prompt 扫描
 
-## Rule Source Strategy
+## 规则来源策略
 
-Rules are resolved with `project-first` behavior by default:
+默认使用 `project-first` 规则解析策略：
 
-1. Look upward from the edited file or current workspace for the nearest `semantic-rules.md`.
-2. Fall back to the plugin-bundled `semantic-rules.md` if no project file exists.
+1. 从当前编辑文件或工作区开始，向上查找最近的 `semantic-rules.md`
+2. 如果项目内没有，则回退到插件自带的 `semantic-rules.md`
 
-You can force plugin-only resolution with `.semantic-linter.json`.
+你也可以通过 `.semantic-linter.json` 强制使用 `plugin-only`。
 
-## Installation
+## 安装
 
 ### Claude Code
 
@@ -48,27 +48,27 @@ codex plugin marketplace add SummerSec/semantic-linter
 codex plugin add semantic-linter@semantic-linter
 ```
 
-Codex does not consume Claude hook manifests. Its project-level integration is the managed rules block in `AGENTS.md`.
+Codex 不直接消费 Claude 的 hook manifest。它的项目级接入方式是把受管规则块写入 `AGENTS.md`。
 
-## Project Bootstrap
+## 项目初始化
 
-To install project-local semantic rules into the current repo:
+如果你想把项目本地规则注入到当前仓库，可以运行：
 
 ```bash
 node /absolute/path/to/semantic-linter/scripts/build-rules.js --existing "$(pwd)"
 ```
 
-This writes:
+这会生成：
 
 - `semantic-rules.md`
-- a managed rules block in existing `AGENTS.md` and/or `CLAUDE.md`
+- `AGENTS.md` 和或 `CLAUDE.md` 中的受管规则区块
 
-If neither file exists, the script creates the host-appropriate default target:
+如果两个文件都不存在，脚本会根据宿主环境创建默认目标：
 
-- Codex or auto host: `AGENTS.md`
-- Claude host: `CLAUDE.md`
+- Codex 或 auto：`AGENTS.md`
+- Claude：`CLAUDE.md`
 
-Useful commands:
+常用命令：
 
 ```bash
 npm run build-rules
@@ -79,11 +79,11 @@ npm run scan -- <file>
 npm test
 ```
 
-## Configuration
+## 配置
 
-Optional repo config lives in `.semantic-linter.json`.
+可选配置文件为 `.semantic-linter.json`。
 
-Supported fields:
+支持的字段：
 
 ```json
 {
@@ -97,24 +97,24 @@ Supported fields:
 }
 ```
 
-Notes:
+说明：
 
-- `defaultMode` accepts `off`, `pointer`, `guarded`, `strict`.
-- `ruleSource` accepts `project-first` and `plugin-only`.
-- `enablePromptScan` enables `UserPromptSubmit` in `guarded` mode.
-- `strict` always enables prompt scanning.
+- `defaultMode` 支持 `off`、`pointer`、`guarded`、`strict`
+- `ruleSource` 支持 `project-first` 和 `plugin-only`
+- `enablePromptScan` 会在 `guarded` 模式下启用 `UserPromptSubmit`
+- `strict` 会始终开启 prompt 扫描
 
-## Detection Scope
+## 检测范围
 
-Semantic-Linter scans instruction-like files matched by path conventions:
+Semantic-Linter 会按路径约定扫描指令类文件：
 
-- file names: `SKILL.md`, `AGENTS.md`, `CLAUDE.md`
-- suffixes: `*.prompt.md`, `*_definitions.md`, `*_examples.md`
-- directories: `skills/`, `agents/`, `commands/`, `rules/`, `prompts/`
+- 文件名：`SKILL.md`、`AGENTS.md`、`CLAUDE.md`
+- 后缀：`*.prompt.md`、`*_definitions.md`、`*_examples.md`
+- 目录：`skills/`、`agents/`、`commands/`、`rules/`、`prompts/`
 
-## Development Notes
+## 开发说明
 
-Key runtime files:
+核心运行时文件：
 
 - `hooks/session-start.js`
 - `hooks/subagent-start.js`
@@ -125,7 +125,7 @@ Key runtime files:
 - `hooks/runtime.js`
 - `hooks/rules-resolver.js`
 
-Core library files:
+核心库文件：
 
 - `lib/content-scanner.js`
 - `lib/structural-analyzer.js`
@@ -133,17 +133,17 @@ Core library files:
 - `lib/state-manager.js`
 - `lib/config-loader.js`
 
-## Testing
+## 测试
 
 ```bash
 npm test
 ```
 
-`npm test` runs:
+`npm test` 会依次运行：
 
 - `build-lexicon:check`
 - `build-rules:check`
 - `tests/test-scanner.js`
 - `tests/test-new-features.js`
 
-The test suite covers scanner behavior, generator idempotence, manifest alignment, and stdin-driven hook entrypoints.
+测试覆盖扫描器行为、生成器幂等性、manifest 一致性，以及基于 stdin 的 hook 入口行为。

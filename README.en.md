@@ -1,3 +1,5 @@
+[简体中文](./README.md)
+
 # Semantic-Linter
 
 Semantic-Linter is a plugin and CLI for narrowing wide-boundary wording in LLM instruction files. It targets `SKILL.md`, `AGENTS.md`, `CLAUDE.md`, prompt docs, command docs, and similar instruction assets where vague wording can cause hallucination or scope creep.
