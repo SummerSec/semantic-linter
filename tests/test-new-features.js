@@ -387,6 +387,62 @@ test('Codex marketplace entry points at repo plugin root', () => {
   assert.strictEqual(entry.source.path, '.');
 });
 
+test('DSH bundle manifest points at the packaged Cordis layer', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.strictEqual(pkg.dsh.bundle.patch, './dsh/cordis.patch.yml');
+  assert.strictEqual(pkg.exports['./dsh'], './dsh/index.js');
+  assert.strictEqual(pkg.exports['./package.json'], './package.json');
+  const patch = fs.readFileSync(path.join(__dirname, '..', 'dsh', 'cordis.patch.yml'), 'utf8');
+  assert.ok(patch.includes('id: semantic-linter'));
+  assert.ok(patch.includes("name: 'semantic-linter/dsh'"));
+});
+
+test('DSH can dynamically import the CommonJS plugin exports', () => {
+  const script = [
+    "import('semantic-linter/dsh').then((mod) => {",
+    "  console.log(JSON.stringify({ name: mod.name, inject: mod.inject, apply: typeof mod.apply }));",
+    '});',
+  ].join('\n');
+  const result = JSON.parse(runNode('-e', [script], { cwd: path.join(__dirname, '..') }));
+  assert.strictEqual(result.name, 'semantic-linter');
+  assert.deepStrictEqual(result.inject, ['skills']);
+  assert.strictEqual(result.apply, 'function');
+});
+
+test('DSH plugin registers every packaged skill with resource bases', () => {
+  const modulePath = path.join(__dirname, '..', 'dsh', 'index.js');
+  const script = [
+    `const plugin = require(${JSON.stringify(modulePath)});`,
+    'let provider;',
+    'plugin.apply({ skills: { registerProvider(create) {',
+    '  provider = create({ signal: new AbortController().signal, invalidate() {} });',
+    '  return () => {};',
+    '} } });',
+    'Promise.resolve(provider.list({})).then(async (candidates) => {',
+    '  const loaded = await Promise.all(candidates.map((candidate) => provider.get(candidate, {})));',
+    '  console.log(JSON.stringify({ provider: provider.name, candidates, loaded }));',
+    '});',
+  ].join('\n');
+  const result = JSON.parse(runNode('-e', [script]));
+  assert.strictEqual(result.provider, 'semantic-linter');
+  assert.deepStrictEqual(result.candidates.map((skill) => skill.name), [
+    'lexicon-manager',
+    'rules-installer',
+    'semantic-analyzer',
+    'semantic-linter-shot',
+  ]);
+  for (const skill of result.candidates) {
+    assert.strictEqual(skill.source, 'bundled');
+    assert.strictEqual(skill.rank, 600);
+    assert.strictEqual(skill.resourceBase.kind, 'directory');
+    assert.ok(path.isAbsolute(skill.resourceBase.path));
+  }
+  for (const skill of result.loaded) {
+    assert.ok(skill.content.startsWith('# '));
+    assert.strictEqual(skill.resourceBase.kind, 'directory');
+  }
+});
+
 test('rules-installer skill exists and references build-rules.js', () => {
   const skillPath = path.join(__dirname, '..', 'skills', 'rules-installer', 'SKILL.md');
   assert.ok(fs.existsSync(skillPath));

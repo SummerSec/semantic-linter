@@ -50,6 +50,28 @@ codex plugin add semantic-linter@semantic-linter
 
 Codex 不直接消费 Claude 的 hook manifest。它的项目级接入方式是把受管规则块写入 `AGENTS.md`。
 
+### DeepSeek Harness
+
+安装官方 DSH CLI，并把本仓库作为 bundle 加入需要使用的 profile：
+
+```bash
+npm install -g @deepseek-ai/dsh@0.1.0-rc.6
+dsh plugin --profile headless add github:SummerSec/semantic-linter
+dsh plugin --profile web add github:SummerSec/semantic-linter
+```
+
+本地开发时可以在仓库根目录执行：
+
+```bash
+dsh plugin --profile headless add .
+```
+
+如果 pnpm 返回 `ERR_PNPM_ADDING_TO_ROOT`，在命令末尾追加 `--ignore-workspace-root-check` 后重试。
+
+这个 DSH bundle 会把仓库根目录 `skills/` 下的四个 Skill 注册到 `ctx.skills`。DSH 还会读取工作区中的 `AGENTS.md` 或 `CLAUDE.md`；调用 `rules-installer` 后，项目可以通过受管规则块按需读取 `semantic-rules.md`。
+
+DSH 不会直接执行本仓库的 Claude hook manifest。DSH 下提供的是 packaged Skill + 项目 instruction pointer；`SessionStart`、`SubagentStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse` 和 `/stl-mode` 仍仅属于 Claude hook 路径。
+
 ## 项目初始化
 
 如果你想把项目本地规则注入到当前仓库，可以运行：

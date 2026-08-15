@@ -50,6 +50,28 @@ codex plugin add semantic-linter@semantic-linter
 
 Codex does not consume Claude hook manifests. Its project-level integration is the managed rules block in `AGENTS.md`.
 
+### DeepSeek Harness
+
+Install the official DSH CLI, then add this repository as a bundle to each profile that should expose Semantic-Linter:
+
+```bash
+npm install -g @deepseek-ai/dsh@0.1.0-rc.6
+dsh plugin --profile headless add github:SummerSec/semantic-linter
+dsh plugin --profile web add github:SummerSec/semantic-linter
+```
+
+For local development, run this from the repository root:
+
+```bash
+dsh plugin --profile headless add .
+```
+
+If pnpm returns `ERR_PNPM_ADDING_TO_ROOT`, retry with `--ignore-workspace-root-check` appended to the command.
+
+The DSH bundle registers the four packaged skills under the repository's root `skills/` directory with `ctx.skills`. DSH also reads `AGENTS.md` or `CLAUDE.md` from the workspace; after invoking `rules-installer`, the project can load `semantic-rules.md` on demand through the managed rules block.
+
+DSH does not execute this repository's Claude hook manifest. The DSH path provides packaged skills plus the managed project instruction pointer; `SessionStart`, `SubagentStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `/stl-mode` remain Claude-hook-only behavior.
+
 ## Project Bootstrap
 
 To install project-local semantic rules into the current repo:

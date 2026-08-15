@@ -29,7 +29,8 @@ node "<SCRIPT>" --check --existing "$(pwd)"
 5. Tell the user:
    - which files were written
    - whether validation passed
-   - that the default mode is `guarded`
+   - that Claude hook mode defaults to `guarded`
+   - that Codex and DeepSeek Harness use the managed instruction pointer without Claude hook events
    - that project-local `semantic-rules.md` is preferred over the plugin fallback
 
 ## Important Rules
@@ -45,6 +46,7 @@ Semantic-Linter is no longer pointer-only.
 
 - Claude can use `SessionStart`, `SubagentStart`, `UserPromptSubmit`, `PreToolUse`, and `PostToolUse`.
 - Codex relies on the managed project instruction file and on-demand rule loading.
+- DeepSeek Harness uses the packaged Skill catalog plus `AGENTS.md` or `CLAUDE.md`; it does not execute the Claude hook manifest.
 - `pointer` mode keeps only the lightweight pointer.
 - `guarded` mode adds write-time lint checks.
 - `strict` mode also enables prompt scanning.
